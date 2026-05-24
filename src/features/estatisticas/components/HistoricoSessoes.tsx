@@ -83,11 +83,16 @@ export function HistoricoSessoes() {
                   className="border-b border-[var(--color-borda)]/50 hover:bg-[var(--color-superficie-secundaria)] transition-colors"
                 >
                   <td className="py-2 text-[var(--color-conteudo-secundario)]">
-                    {s.inicio.toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    <div>
+                      {s.inicio.toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </div>
+                    <div className="text-xs text-[var(--color-conteudo-terciario)]">
+                      {s.inicio.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
                   </td>
                   <td className="py-2">
                     <span className="rounded-full bg-[var(--color-acento)]/10 px-2 py-0.5 text-xs text-[var(--color-acento)]">

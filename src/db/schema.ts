@@ -14,6 +14,11 @@ export async function getDb(): Promise<Database> {
 const MIGRATIONS = [
   () => import("./migrations/0001_init.sql?raw").then((m) => m.default),
   () => import("./migrations/0002_add_conquistas.sql?raw").then((m) => m.default),
+  () => import("./migrations/0003_seed_exercicios.sql?raw").then((m) => m.default),
+  () => import("./migrations/0004_fix_exercicios.sql?raw").then((m) => m.default),
+  () => import("./migrations/0005_sessoes_pausadas.sql?raw").then((m) => m.default),
+  () => import("./migrations/0006_circles_puzzles.sql?raw").then((m) => m.default),
+  () => import("./migrations/0007_circles_v2.sql?raw").then((m) => m.default),
 ];
 
 async function runMigrations(db: Database): Promise<void> {

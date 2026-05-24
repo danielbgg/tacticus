@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { TabuleiroInterativo } from "@/features/exercicio/components/TabuleiroInterativo";
 import { PainelExercicio } from "@/features/exercicio/components/PainelExercicio";
 import { useSessaoStore } from "@/features/exercicio/store/useSessaoStore";
@@ -8,26 +9,87 @@ import { useSessaoTreino } from "@/features/exercicio/hooks/useSessaoTreino";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
 import { EmptyState } from "@/shared/components/EmptyState/EmptyState";
 import { Skeleton } from "@/shared/components/Skeleton/Skeleton";
+import { Button } from "@/shared/components/Button/Button";
+import { getDb } from "@/db/schema";
+import { buscarUnidadeComModulo } from "@/db/queries/estrutura";
 import type { UnidadeId } from "@/shared/types/branded";
+
+type FasePagina = "carregando" | "dialogo-retomar" | "treinando" | "concluida" | "vazia";
+
+function formatarDataPausa(data: Date): string {
+  const diffMs = Date.now() - data.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `há ${diffH}h`;
+  return `há ${Math.floor(diffH / 24)} dia(s)`;
+}
 
 export function TreinoPage() {
   const { t } = useTranslation("sessao");
   const navigate = useNavigate();
   const { unidadeId } = useParams({ from: "/treinar/$unidadeId" });
   const configuracoes = usePerfilStore((s) => s.configuracoes);
-  const { iniciar, processarLance } = useSessaoTreino();
+  const { iniciar, confirmar, pausar, processarLance } = useSessaoTreino();
+
+  const { data: unidadeInfo } = useQuery({
+    queryKey: ["unidade-modulo", unidadeId],
+    queryFn: async () => {
+      const db = await getDb();
+      const r = await buscarUnidadeComModulo(db as never, unidadeId);
+      return r.ok ? r.value : null;
+    },
+  });
   const store = useSessaoStore();
+  const [mostrarSolucao, setMostrarSolucao] = useState(false);
+  const [chaveReset, setChaveReset] = useState(0);
+  const [fasePagina, setFasePagina] = useState<FasePagina>("carregando");
 
   useEffect(() => {
     iniciar.mutate(unidadeId as UnidadeId);
-    return () => store.encerrarSessao();
+    return () => {
+      pausar(unidadeId as UnidadeId);
+      store.encerrarSessao();
+    };
   }, [unidadeId]);
+
+  // Reage ao resultado da mutation
+  useEffect(() => {
+    if (!iniciar.isSuccess) return;
+    const { sessaoPausada, filaFresca } = iniciar.data;
+    if (sessaoPausada) {
+      setFasePagina("dialogo-retomar");
+    } else if (filaFresca.length === 0) {
+      setFasePagina("vazia");
+    } else {
+      confirmar(unidadeId as UnidadeId, "fresco");
+      setFasePagina("treinando");
+    }
+  }, [iniciar.isSuccess]);
+
+  // Detecta fim de sessão
+  useEffect(() => {
+    if (fasePagina === "treinando" && store.exercicioAtual === null && store.fila.length > 0) {
+      setFasePagina("concluida");
+    }
+  }, [fasePagina, store.exercicioAtual, store.fila.length]);
+
+  async function handleRetomar() {
+    await confirmar(unidadeId as UnidadeId, "retomar");
+    setFasePagina("treinando");
+  }
+
+  async function handleComecarDoZero() {
+    await confirmar(unidadeId as UnidadeId, "fresco");
+    setFasePagina("treinando");
+  }
 
   function handleLanceCorreto(tempoMs: number) {
     processarLance(true, tempoMs);
   }
 
   function handleLanceErrado(tempoMs: number) {
+    setMostrarSolucao(false);
     processarLance(false, tempoMs);
   }
 
@@ -36,14 +98,21 @@ export function TreinoPage() {
   }
 
   function handleDesistir() {
-    processarLance(false, 0);
+    setMostrarSolucao(true);
+  }
+
+  function handleTentarNovamente() {
+    setMostrarSolucao(false);
+    setChaveReset((k) => k + 1);
+    store.resetarParaTentando();
   }
 
   function handleProximo() {
+    setMostrarSolucao(false);
     store.avancarExercicio();
   }
 
-  if (iniciar.isPending) {
+  if (fasePagina === "carregando") {
     return (
       <div className="flex flex-col gap-6 p-6" aria-busy="true" aria-label="Carregando sessão">
         <Skeleton className="h-[480px] w-full max-w-[560px] mx-auto rounded-xl" />
@@ -52,7 +121,39 @@ export function TreinoPage() {
     );
   }
 
-  if (store.exercicioAtual === null && store.fila.length === 0 && !iniciar.isPending) {
+  if (fasePagina === "dialogo-retomar") {
+    const pausada = iniciar.data?.sessaoPausada;
+    const restantes = pausada?.fila.length ?? 0;
+    const quando = pausada ? formatarDataPausa(pausada.pausadaEm) : "";
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="w-full max-w-sm rounded-2xl border border-[var(--color-borda)] bg-[var(--color-superficie)] p-8 shadow-lg text-center flex flex-col gap-6">
+          <span className="text-5xl" aria-hidden="true">
+            ⏸
+          </span>
+          <div>
+            <h2 className="text-xl font-bold text-[var(--color-conteudo-primario)]">
+              Sessão pausada encontrada
+            </h2>
+            <p className="mt-2 text-sm text-[var(--color-conteudo-secundario)]">
+              {restantes} exercício{restantes !== 1 ? "s" : ""} restante{restantes !== 1 ? "s" : ""}{" "}
+              · pausada {quando}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Button variant="primary" onClick={handleRetomar} className="w-full">
+              Retomar de onde parei
+            </Button>
+            <Button variant="ghost" onClick={handleComecarDoZero} className="w-full">
+              Começar do zero
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (fasePagina === "vazia") {
     return (
       <EmptyState
         icone="🏆"
@@ -64,7 +165,7 @@ export function TreinoPage() {
     );
   }
 
-  if (!store.exercicioAtual) {
+  if (fasePagina === "concluida") {
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-20 text-center">
         <span className="text-6xl" aria-hidden="true">
@@ -89,24 +190,43 @@ export function TreinoPage() {
     );
   }
 
+  // fasePagina === "treinando"
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <div className="grid gap-6 md:grid-cols-[1fr_280px]">
-        <TabuleiroInterativo
-          onLanceCorreto={handleLanceCorreto}
-          onLanceErrado={handleLanceErrado}
-          {...(configuracoes?.estiloTabuleiro != null
-            ? { estiloTabuleiro: configuracoes.estiloTabuleiro }
-            : {})}
-          {...(configuracoes?.modoDaltonico != null
-            ? { modoDaltonico: configuracoes.modoDaltonico }
-            : {})}
-        />
-        <PainelExercicio
-          onUsarDica={handleUsarDica}
-          onDesistir={handleDesistir}
-          onProximo={handleProximo}
-        />
+    <div className="flex flex-col gap-4 p-6">
+      {/* Cabeçalho: módulo e unidade */}
+      {unidadeInfo && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-semibold text-[var(--color-conteudo-primario)]">
+            {unidadeInfo.moduloNome}
+          </span>
+          <span className="text-[var(--color-conteudo-terciario)]">›</span>
+          <span className="text-[var(--color-conteudo-secundario)]">{unidadeInfo.unidadeNome}</span>
+        </div>
+      )}
+
+      <div className="flex gap-6 items-start">
+        <div className="flex-1 min-w-0">
+          <TabuleiroInterativo
+            onLanceCorreto={handleLanceCorreto}
+            onLanceErrado={handleLanceErrado}
+            pedirSolucao={mostrarSolucao}
+            chaveReset={chaveReset}
+            {...(configuracoes?.estiloTabuleiro != null
+              ? { estiloTabuleiro: configuracoes.estiloTabuleiro }
+              : {})}
+            {...(configuracoes?.modoDaltonico != null
+              ? { modoDaltonico: configuracoes.modoDaltonico }
+              : {})}
+          />
+        </div>
+        <div className="w-72 shrink-0">
+          <PainelExercicio
+            onUsarDica={handleUsarDica}
+            onDesistir={handleDesistir}
+            onProximo={handleProximo}
+            onTentarNovamente={handleTentarNovamente}
+          />
+        </div>
       </div>
     </div>
   );

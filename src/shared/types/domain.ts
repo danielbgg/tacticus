@@ -65,6 +65,8 @@ export interface Exercicio {
   tipo: TipoExercicio;
   descricao?: string;
   ordem: number;
+  temas?: string[];
+  rating?: number;
 }
 
 export interface AvaliacaoMotor {

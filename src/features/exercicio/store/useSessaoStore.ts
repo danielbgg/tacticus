@@ -22,6 +22,7 @@ interface EstadoSessao {
   registrarAcerto: (tempoMs: number) => void;
   registrarErro: (tempoMs: number) => void;
   usarDica: () => void;
+  resetarParaTentando: () => void;
   encerrarSessao: () => void;
   setFase: (fase: FaseExercicio) => void;
 }
@@ -78,6 +79,8 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
     })),
 
   usarDica: () => set((s) => ({ dicasUsadas: s.dicasUsadas + 1, fase: "dica" })),
+
+  resetarParaTentando: () => set({ fase: "tentando", dicasUsadas: 0 }),
 
   encerrarSessao: () =>
     set({

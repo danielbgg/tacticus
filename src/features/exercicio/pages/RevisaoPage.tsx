@@ -12,7 +12,7 @@ import { calcularProximaRevisao, inicializarProgresso } from "@/shared/lib/sm2";
 import { salvarProgresso, buscarProgressoExercicio } from "@/db/queries/progresso";
 import { EmptyState } from "@/shared/components/EmptyState/EmptyState";
 import { Skeleton } from "@/shared/components/Skeleton/Skeleton";
-import { randomUUID } from "crypto";
+
 import type { SessaoId } from "@/shared/types/branded";
 
 export function RevisaoPage() {
@@ -41,7 +41,7 @@ export function RevisaoPage() {
 
   useEffect(() => {
     if (exercicios && exercicios.length > 0) {
-      store.iniciarSessao(randomUUID() as SessaoId, "revisao", exercicios);
+      store.iniciarSessao(crypto.randomUUID() as SessaoId, "revisao", exercicios);
     }
     return () => store.encerrarSessao();
   }, [exercicios]);
@@ -122,6 +122,7 @@ export function RevisaoPage() {
           onUsarDica={() => store.usarDica()}
           onDesistir={() => processarLance(false, 0)}
           onProximo={() => store.avancarExercicio()}
+          onTentarNovamente={() => store.resetarParaTentando()}
         />
       </div>
     </div>

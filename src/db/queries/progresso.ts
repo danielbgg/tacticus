@@ -102,6 +102,34 @@ export async function listarProgressoPerfil(
   }
 }
 
+export interface ProgressoUnidade {
+  unidadeId: string;
+  total: number;
+  dominados: number;
+}
+
+export async function listarProgressoAgrupadoPorUnidade(
+  db: Database,
+  perfilId: PerfilId,
+): Promise<Result<ProgressoUnidade[], string>> {
+  try {
+    const rows = await db.select<{ unidade_id: string; total: number; dominados: number }[]>(
+      `SELECT e.unidade_id,
+              COUNT(*) as total,
+              SUM(CASE WHEN pe.status = 'dominado' THEN 1 ELSE 0 END) as dominados
+       FROM exercicios e
+       LEFT JOIN progresso_exercicio pe ON pe.exercicio_id = e.id AND pe.perfil_id = ?
+       GROUP BY e.unidade_id`,
+      [perfilId],
+    );
+    return ok(
+      rows.map((r) => ({ unidadeId: r.unidade_id, total: r.total, dominados: r.dominados })),
+    );
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao listar progresso agrupado");
+  }
+}
+
 export async function listarExerciciosParaRevisao(
   db: Database,
   perfilId: PerfilId,

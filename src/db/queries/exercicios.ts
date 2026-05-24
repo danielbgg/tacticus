@@ -19,6 +19,7 @@ interface ExercicioRow {
   fen_final: string | null;
   descricao: string | null;
   ordem: number;
+  temas: string | null;
 }
 
 interface PartidaRow {
@@ -50,6 +51,7 @@ function rowParaPartida(row: PartidaRow): Partida {
 }
 
 function rowParaExercicio(row: ExercicioRow, partida: Partida): Exercicio {
+  const ratingMatch = row.descricao ? /\((\d+)\)$/.exec(row.descricao) : null;
   return {
     id: toExercicioId(row.id),
     unidadeId: toUnidadeId(row.unidade_id),
@@ -60,12 +62,14 @@ function rowParaExercicio(row: ExercicioRow, partida: Partida): Exercicio {
     lancesSolucao: JSON.parse(row.lances_solucao) as string[],
     ...(row.fen_final ? { fenFinal: row.fen_final } : {}),
     ...(row.descricao ? { descricao: row.descricao } : {}),
+    ...(row.temas ? { temas: row.temas.trim().split(" ") } : {}),
+    ...(ratingMatch ? { rating: parseInt(ratingMatch[1]!) } : {}),
     ordem: row.ordem,
   };
 }
 
 type JoinRow = ExercicioRow & {
-  p_id: string;
+  p_id: string | null;
   p_brancas: string | null;
   p_negras: string | null;
   p_elo_brancas: number | null;
@@ -79,7 +83,7 @@ type JoinRow = ExercicioRow & {
 
 function joinRowParaExercicio(r: JoinRow): Exercicio {
   const partida = rowParaPartida({
-    id: r.p_id,
+    id: r.p_id ?? r.id,
     brancas: r.p_brancas,
     negras: r.p_negras,
     elo_brancas: r.p_elo_brancas,
@@ -94,7 +98,7 @@ function joinRowParaExercicio(r: JoinRow): Exercicio {
 }
 
 const JOIN_SQL = `
-  SELECT e.id, e.unidade_id, e.partida_id, e.fen_inicial, e.lances_solucao, e.fen_final, e.descricao, e.ordem,
+  SELECT e.id, e.unidade_id, e.partida_id, e.fen_inicial, e.lances_solucao, e.fen_final, e.descricao, e.ordem, e.temas,
          p.id as p_id, p.brancas as p_brancas, p.negras as p_negras,
          p.elo_brancas as p_elo_brancas, p.elo_negras as p_elo_negras,
          p.evento as p_evento, p.ano as p_ano, p.resultado as p_resultado,

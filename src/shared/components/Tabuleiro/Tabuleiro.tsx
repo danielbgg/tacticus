@@ -1,7 +1,8 @@
+import { useRef, useState, useLayoutEffect } from "react";
 import { Chessboard } from "react-chessboard";
-import type { Square, Piece } from "react-chessboard/dist/chessboard/types";
+import type { Square, Piece, PromotionPieceOption } from "react-chessboard/dist/chessboard/types";
 import { cn } from "@/shared/lib/cn";
-import type { EstiloTabuleiro, ConjuntoPecas } from "@/shared/types/domain";
+import type { EstiloTabuleiro } from "@/shared/types/domain";
 
 interface Seta {
   origem: Square;
@@ -9,17 +10,18 @@ interface Seta {
   cor?: string;
 }
 
-interface TabuleiroProps {
+export interface TabuleiroProps {
   fen?: string;
   orientacao?: "white" | "black";
-  interativo?: boolean;
   estiloTabuleiro?: EstiloTabuleiro;
-  conjuntoPecas?: ConjuntoPecas;
   ultimoLance?: { origem: Square; destino: Square } | null;
   setas?: Seta[];
-  quadradosDestacados?: Square[];
+  casasDestacadas?: Record<string, React.CSSProperties>;
   modoDaltonico?: boolean;
-  onLance?: (origem: Square, destino: Square, peca: Piece) => boolean;
+  arrastavel?: boolean;
+  onSquareClick?: (square: Square, piece?: Piece) => void;
+  onPieceDrop?: (from: Square, to: Square, piece: Piece) => boolean;
+  onPromotionPieceSelect?: (piece?: PromotionPieceOption, from?: Square, to?: Square) => boolean;
   className?: string;
 }
 
@@ -37,15 +39,33 @@ const CORES_DALTONICO = { claro: "#ffdd99", escuro: "#5577aa" };
 export function Tabuleiro({
   fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   orientacao = "white",
-  interativo = false,
   estiloTabuleiro = "classico",
   ultimoLance,
   setas = [],
-  quadradosDestacados = [],
+  casasDestacadas = {},
   modoDaltonico = false,
-  onLance,
+  arrastavel = false,
+  onSquareClick,
+  onPieceDrop,
+  onPromotionPieceSelect,
   className,
 }: TabuleiroProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [largura, setLargura] = useState(560);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const medir = () => {
+      const w = el.offsetWidth;
+      if (w > 0) setLargura(w);
+    };
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const prefersReducedMotion =
     typeof window !== "undefined"
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -55,18 +75,12 @@ export function Tabuleiro({
     ? CORES_DALTONICO
     : (CORES_ESTILO[estiloTabuleiro] ?? CORES_ESTILO.classico);
 
-  const estilosQuadrados: Record<string, React.CSSProperties> = {};
+  const estilosQuadrados: Record<string, React.CSSProperties> = { ...casasDestacadas };
 
   if (ultimoLance) {
-    const corUltimoLance = modoDaltonico ? "rgba(100, 160, 240, 0.5)" : "rgba(255, 255, 0, 0.4)";
-    estilosQuadrados[ultimoLance.origem] = { backgroundColor: corUltimoLance };
-    estilosQuadrados[ultimoLance.destino] = { backgroundColor: corUltimoLance };
-  }
-
-  for (const sq of quadradosDestacados) {
-    estilosQuadrados[sq] = {
-      backgroundColor: modoDaltonico ? "rgba(100, 200, 100, 0.6)" : "rgba(50, 200, 50, 0.5)",
-    };
+    const cor = modoDaltonico ? "rgba(100, 160, 240, 0.5)" : "rgba(255, 255, 0, 0.4)";
+    estilosQuadrados[ultimoLance.origem] = { backgroundColor: cor };
+    estilosQuadrados[ultimoLance.destino] = { backgroundColor: cor };
   }
 
   const setasFormatadas = setas.map((s): [Square, Square, string] => [
@@ -76,14 +90,20 @@ export function Tabuleiro({
   ]);
 
   return (
-    <div className={cn("select-none", className)} aria-label="Tabuleiro de xadrez" role="img">
+    <div
+      ref={containerRef}
+      className={cn("select-none w-full", className)}
+      aria-label="Tabuleiro de xadrez"
+      role="img"
+    >
       <Chessboard
+        boardWidth={largura}
         position={fen}
         boardOrientation={orientacao}
-        arePiecesDraggable={interativo}
-        {...(onLance
-          ? { onPieceDrop: (src: Square, dst: Square, piece: Piece) => onLance(src, dst, piece) }
-          : {})}
+        arePiecesDraggable={arrastavel}
+        {...(onSquareClick ? { onSquareClick } : {})}
+        {...(onPieceDrop ? { onPieceDrop } : {})}
+        {...(onPromotionPieceSelect ? { onPromotionPieceSelect } : {})}
         customDarkSquareStyle={{ backgroundColor: cores.escuro }}
         customLightSquareStyle={{ backgroundColor: cores.claro }}
         customSquareStyles={estilosQuadrados}

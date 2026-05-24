@@ -65,6 +65,52 @@ export async function listarModulosArea(
   }
 }
 
+export interface UnidadeComModulo {
+  unidadeId: string;
+  unidadeNome: string;
+  unidadeOrdem: number;
+  moduloId: string;
+  moduloNome: string;
+  moduloOrdem: number;
+}
+
+export async function buscarUnidadeComModulo(
+  db: Database,
+  unidadeId: string,
+): Promise<Result<UnidadeComModulo | null, string>> {
+  try {
+    const rows = await db.select<
+      Array<{
+        u_id: string;
+        u_nome: string;
+        u_ordem: number;
+        m_id: string;
+        m_nome: string;
+        m_ordem: number;
+      }>
+    >(
+      `SELECT u.id as u_id, u.nome as u_nome, u.ordem as u_ordem,
+              m.id as m_id, m.nome as m_nome, m.ordem as m_ordem
+       FROM unidades u
+       JOIN modulos m ON m.id = u.modulo_id
+       WHERE u.id = ?`,
+      [unidadeId],
+    );
+    const r = rows[0];
+    if (!r) return ok(null);
+    return ok({
+      unidadeId: r.u_id,
+      unidadeNome: r.u_nome,
+      unidadeOrdem: r.u_ordem,
+      moduloId: r.m_id,
+      moduloNome: r.m_nome,
+      moduloOrdem: r.m_ordem,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao buscar unidade");
+  }
+}
+
 export async function listarUnidadesModulo(
   db: Database,
   moduloId: string,
