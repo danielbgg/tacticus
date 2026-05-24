@@ -1,7 +1,6 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
-import type { Exercicio } from "@/shared/types/domain";
 import {
   toExercicioId,
   toPartidaId,
@@ -9,7 +8,6 @@ import {
   type UnidadeId,
   type PartidaId,
 } from "@/shared/types/branded";
-import { randomUUID } from "crypto";
 
 interface CriarExercicioInput {
   unidadeId: UnidadeId;
@@ -27,13 +25,16 @@ type AtualizarExercicioInput = Partial<
 
 const PARTIDA_PLACEHOLDER = toPartidaId("placeholder");
 
-function criarPartidaPlaceholder(db: Database): void {
-  const existe = db.prepare("SELECT id FROM partidas WHERE id = 'placeholder'").get();
-  if (!existe) {
-    db.prepare(
-      "INSERT INTO partidas (id, brancas, negras) VALUES ('placeholder', 'Personalizado', 'Personalizado')",
-    ).run();
-  }
+async function garantirPartidaPlaceholder(db: Database): Promise<void> {
+  await db.execute(
+    `INSERT OR IGNORE INTO partidas (id, brancas, negras) VALUES ('placeholder', 'Personalizado', 'Personalizado')`,
+  );
+}
+
+async function garantirTabelaMeta(db: Database): Promise<void> {
+  await db.execute(
+    `CREATE TABLE IF NOT EXISTS exercicios_meta (exercicio_id TEXT PRIMARY KEY, banco_customizado INTEGER NOT NULL DEFAULT 0)`,
+  );
 }
 
 export async function criarExercicioCustomizado(
@@ -41,35 +42,27 @@ export async function criarExercicioCustomizado(
   input: CriarExercicioInput,
 ): Promise<Result<{ id: ExercicioId }, string>> {
   try {
-    criarPartidaPlaceholder(db);
-    const id = randomUUID();
-    db.prepare(
+    await garantirPartidaPlaceholder(db);
+    await garantirTabelaMeta(db);
+    const id = crypto.randomUUID();
+    await db.execute(
       `INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, fen_final, descricao, ordem)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id,
-      input.unidadeId,
-      input.partidaId ?? PARTIDA_PLACEHOLDER,
-      input.fenInicial,
-      JSON.stringify(input.lancesSolucao),
-      input.fenFinal ?? null,
-      input.descricao ?? null,
-      input.ordem,
+      [
+        id,
+        input.unidadeId,
+        input.partidaId ?? PARTIDA_PLACEHOLDER,
+        input.fenInicial,
+        JSON.stringify(input.lancesSolucao),
+        input.fenFinal ?? null,
+        input.descricao ?? null,
+        input.ordem,
+      ],
     );
-    // Marcar como customizado via UPDATE (a coluna não existe no schema atual — adicionamos)
-    // Para compatibilidade, usamos uma tabela auxiliar de metadata
-    try {
-      db.prepare(
-        "INSERT OR IGNORE INTO exercicios_meta (exercicio_id, banco_customizado) VALUES (?, 1)",
-      ).run(id);
-    } catch {
-      db.exec(
-        "CREATE TABLE IF NOT EXISTS exercicios_meta (exercicio_id TEXT PRIMARY KEY, banco_customizado INTEGER NOT NULL DEFAULT 0)",
-      );
-      db.prepare(
-        "INSERT OR IGNORE INTO exercicios_meta (exercicio_id, banco_customizado) VALUES (?, 1)",
-      ).run(id);
-    }
+    await db.execute(
+      `INSERT OR IGNORE INTO exercicios_meta (exercicio_id, banco_customizado) VALUES (?, 1)`,
+      [id],
+    );
     return ok({ id: toExercicioId(id) });
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao criar exercício");
@@ -105,9 +98,7 @@ export async function atualizarExercicio(
     if (campos.length === 0) return ok(undefined);
 
     valores.push(id);
-    db.prepare(`UPDATE exercicios SET ${campos.join(", ")} WHERE id = ?`).run(
-      ...(valores as Parameters<ReturnType<Database["prepare"]>["run"]>),
-    );
+    await db.execute(`UPDATE exercicios SET ${campos.join(", ")} WHERE id = ?`, valores);
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao atualizar exercício");
@@ -119,20 +110,17 @@ export async function excluirExercicio(
   id: ExercicioId,
 ): Promise<Result<void, string>> {
   try {
-    // Verificar se é customizado
-    db.exec(
-      "CREATE TABLE IF NOT EXISTS exercicios_meta (exercicio_id TEXT PRIMARY KEY, banco_customizado INTEGER NOT NULL DEFAULT 0)",
+    await garantirTabelaMeta(db);
+    const rows = await db.select<Array<{ banco_customizado: number }>>(
+      `SELECT banco_customizado FROM exercicios_meta WHERE exercicio_id = ?`,
+      [id],
     );
-    const meta = db
-      .prepare("SELECT banco_customizado FROM exercicios_meta WHERE exercicio_id = ?")
-      .get(id) as { banco_customizado: number } | undefined;
-
+    const meta = rows[0];
     if (!meta || meta.banco_customizado !== 1) {
       return err("Não é possível excluir exercícios do banco padrão");
     }
-
-    db.prepare("DELETE FROM exercicios WHERE id = ?").run(id);
-    db.prepare("DELETE FROM exercicios_meta WHERE exercicio_id = ?").run(id);
+    await db.execute("DELETE FROM exercicios WHERE id = ?", [id]);
+    await db.execute("DELETE FROM exercicios_meta WHERE exercicio_id = ?", [id]);
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao excluir exercício");

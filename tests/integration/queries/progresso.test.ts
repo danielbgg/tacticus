@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { adaptDb } from "../helpers/db-adapter";
 import {
   salvarProgresso,
   buscarProgressoExercicio,
@@ -31,14 +32,16 @@ function criarDbMemoria() {
 }
 
 describe("queries/progresso — integração", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
   const perfilId = toPerfilId("p1");
   const exercicioId = toExercicioId("e1");
 
   beforeEach(() => {
-    db = criarDbMemoria();
+    raw = criarDbMemoria();
+    db = adaptDb(raw);
   });
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
   it("salvarProgresso e buscarProgressoExercicio ida-e-volta", async () => {
     const p = inicializarProgresso(perfilId, exercicioId);
@@ -66,9 +69,7 @@ describe("queries/progresso — integração", () => {
 
   it("domínio após N acertos consecutivos com revisão agendada", async () => {
     let p = inicializarProgresso(perfilId, exercicioId);
-    for (let i = 0; i < 5; i++) {
-      p = calcularProximaRevisao(p, true, 0, 2000, 5);
-    }
+    for (let i = 0; i < 5; i++) p = calcularProximaRevisao(p, true, 0, 2000, 5);
     await salvarProgresso(db, p);
     const r = await buscarProgressoExercicio(db, perfilId, exercicioId);
     expect(r.ok).toBe(true);
@@ -81,7 +82,6 @@ describe("queries/progresso — integração", () => {
   it("listarExerciciosParaRevisao retorna apenas revisões pendentes", async () => {
     let p = inicializarProgresso(perfilId, exercicioId);
     for (let i = 0; i < 5; i++) p = calcularProximaRevisao(p, true, 0, 2000, 5);
-    // Forçar revisão para ontem
     p = { ...p, proximaRevisao: new Date(Date.now() - 86400000) };
     await salvarProgresso(db, p);
     const r = await listarExerciciosParaRevisao(db, perfilId);

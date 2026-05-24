@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
 import { join } from "path";
-import type { Perfil } from "@/shared/types/domain";
 import { toPerfilId } from "@/shared/types/branded";
-
-// Adapta as queries para usar better-sqlite3 em vez do plugin Tauri
-// O módulo de queries deve exportar funções testáveis com injeção de DB
 import {
   listarPerfis,
   buscarPerfil,
@@ -14,27 +10,25 @@ import {
   atualizarUltimoAcesso,
   excluirPerfil,
 } from "@/db/queries/perfis";
+import { adaptDb } from "../helpers/db-adapter";
 
 function criarDbMemoria() {
   const db = new Database(":memory:");
-  const migracoes = ["0001_init.sql", "0002_add_conquistas.sql"];
-  for (const m of migracoes) {
-    const sql = readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8");
-    db.exec(sql);
+  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
+    db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
   }
   return db;
 }
 
 describe("queries/perfis — integração SQLite in-memory", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
 
   beforeEach(() => {
-    db = criarDbMemoria();
+    raw = criarDbMemoria();
+    db = adaptDb(raw);
   });
-
-  afterEach(() => {
-    db.close();
-  });
+  afterEach(() => raw.close());
 
   describe("criarPerfil", () => {
     it("insere perfil com campos obrigatórios", async () => {
@@ -93,7 +87,7 @@ describe("queries/perfis — integração SQLite in-memory", () => {
       if (resultado.ok) expect(resultado.value).toHaveLength(0);
     });
 
-    it("retorna todos os perfis ordenados por ultimo_acesso desc", async () => {
+    it("retorna todos os perfis", async () => {
       await criarPerfil(db, {
         nome: "Alice",
         nivel: "iniciante",

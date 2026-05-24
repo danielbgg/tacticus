@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { ConfiguracoesPerfil } from "@/shared/types/domain";
@@ -33,9 +33,11 @@ export async function buscarConfiguracoes(
   perfilId: PerfilId,
 ): Promise<Result<ConfiguracoesPerfil | null, string>> {
   try {
-    const row = db
-      .prepare("SELECT * FROM configuracoes_perfil WHERE perfil_id = ?")
-      .get(perfilId) as ConfiguracoesRow | undefined;
+    const rows = await db.select<ConfiguracoesRow[]>(
+      "SELECT * FROM configuracoes_perfil WHERE perfil_id = ?",
+      [perfilId],
+    );
+    const row = rows[0];
     return ok(row ? rowParaConfiguracoes(row) : null);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao buscar configurações");
@@ -47,7 +49,7 @@ export async function salvarConfiguracoes(
   config: ConfiguracoesPerfil,
 ): Promise<Result<ConfiguracoesPerfil, string>> {
   try {
-    db.prepare(
+    await db.execute(
       `INSERT INTO configuracoes_perfil
          (perfil_id, tema, estilo_tabuleiro, conjunto_pecas, animacao_lances, som_habilitado, modo_daltonico, idioma)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -59,15 +61,16 @@ export async function salvarConfiguracoes(
          som_habilitado = excluded.som_habilitado,
          modo_daltonico = excluded.modo_daltonico,
          idioma = excluded.idioma`,
-    ).run(
-      config.perfilId,
-      config.tema,
-      config.estiloTabuleiro,
-      config.conjuntoPecas,
-      config.animacaoLances,
-      config.somHabilitado ? 1 : 0,
-      config.modoDaltonico ? 1 : 0,
-      config.idioma,
+      [
+        config.perfilId,
+        config.tema,
+        config.estiloTabuleiro,
+        config.conjuntoPecas,
+        config.animacaoLances,
+        config.somHabilitado ? 1 : 0,
+        config.modoDaltonico ? 1 : 0,
+        config.idioma,
+      ],
     );
     return ok(config);
   } catch (e) {

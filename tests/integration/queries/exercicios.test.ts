@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { adaptDb } from "../helpers/db-adapter";
 import {
   listarExercicios,
   buscarExercicio,
@@ -17,10 +18,8 @@ import { inicializarProgresso } from "@/shared/lib/sm2";
 
 function criarDbMemoria() {
   const db = new Database(":memory:");
-  const migracoes = ["0001_init.sql", "0002_add_conquistas.sql"];
-  for (const m of migracoes) {
-    const sql = readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8");
-    db.exec(sql);
+  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
+    db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
   }
   return db;
 }
@@ -40,14 +39,15 @@ function seedDados(db: InstanceType<typeof Database>) {
 }
 
 describe("queries/exercicios", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
 
   beforeEach(() => {
-    db = criarDbMemoria();
-    seedDados(db);
+    raw = criarDbMemoria();
+    seedDados(raw);
+    db = adaptDb(raw);
   });
-
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
   it("listarExercicios retorna todos os exercícios", async () => {
     const r = await listarExercicios(db);
@@ -81,18 +81,19 @@ describe("queries/exercicios", () => {
 });
 
 describe("queries/progresso", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
   const perfilId = toPerfilId("perfil-teste");
   const exercicioId = toExercicioId("ex-1");
 
   beforeEach(() => {
-    db = criarDbMemoria();
-    seedDados(db);
-    db.exec(`INSERT INTO perfis (id, nome, nivel, avatar, acertos_para_dominar, criado_em, ultimo_acesso)
-             VALUES ('perfil-teste', 'Teste', 'iniciante', '♙', 5, datetime('now'), datetime('now'))`);
+    raw = criarDbMemoria();
+    seedDados(raw);
+    raw.exec(`INSERT INTO perfis (id, nome, nivel, avatar, acertos_para_dominar, criado_em, ultimo_acesso)
+              VALUES ('perfil-teste', 'Teste', 'iniciante', '♙', 5, datetime('now'), datetime('now'))`);
+    db = adaptDb(raw);
   });
-
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
   it("buscarProgressoExercicio retorna null para exercício sem progresso", async () => {
     const r = await buscarProgressoExercicio(db, perfilId, exercicioId);
@@ -115,7 +116,7 @@ describe("queries/progresso", () => {
     const progresso = {
       ...inicializarProgresso(perfilId, exercicioId),
       status: "dominado" as const,
-      proximaRevisao: new Date(Date.now() - 86400000), // ontem
+      proximaRevisao: new Date(Date.now() - 86400000),
     };
     await salvarProgresso(db, progresso);
     const r = await listarExerciciosParaRevisao(db, perfilId);

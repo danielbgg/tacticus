@@ -1,9 +1,8 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { Perfil, NivelJogador } from "@/shared/types/domain";
 import { toPerfilId, type PerfilId } from "@/shared/types/branded";
-import { randomUUID } from "crypto";
 
 interface CriarPerfilInput {
   nome: string;
@@ -39,13 +38,16 @@ export async function criarPerfil(
   input: CriarPerfilInput,
 ): Promise<Result<Perfil, string>> {
   try {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const agora = new Date().toISOString();
-    db.prepare(
+    await db.execute(
       `INSERT INTO perfis (id, nome, nivel, avatar, acertos_para_dominar, criado_em, ultimo_acesso)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, input.nome, input.nivel, input.avatar, input.acertosParaDominar, agora, agora);
-    const row = db.prepare("SELECT * FROM perfis WHERE id = ?").get(id) as PerfilRow;
+      [id, input.nome, input.nivel, input.avatar, input.acertosParaDominar, agora, agora],
+    );
+    const rows = await db.select<PerfilRow[]>("SELECT * FROM perfis WHERE id = ?", [id]);
+    const row = rows[0];
+    if (!row) throw new Error("Perfil não encontrado após criação");
     return ok(rowParaPerfil(row));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao criar perfil");
@@ -54,9 +56,7 @@ export async function criarPerfil(
 
 export async function listarPerfis(db: Database): Promise<Result<Perfil[], string>> {
   try {
-    const rows = db
-      .prepare("SELECT * FROM perfis ORDER BY ultimo_acesso DESC")
-      .all() as PerfilRow[];
+    const rows = await db.select<PerfilRow[]>("SELECT * FROM perfis ORDER BY ultimo_acesso DESC");
     return ok(rows.map(rowParaPerfil));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao listar perfis");
@@ -68,7 +68,8 @@ export async function buscarPerfil(
   id: PerfilId,
 ): Promise<Result<Perfil | null, string>> {
   try {
-    const row = db.prepare("SELECT * FROM perfis WHERE id = ?").get(id) as PerfilRow | undefined;
+    const rows = await db.select<PerfilRow[]>("SELECT * FROM perfis WHERE id = ?", [id]);
+    const row = rows[0];
     return ok(row ? rowParaPerfil(row) : null);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao buscar perfil");
@@ -80,10 +81,10 @@ export async function atualizarUltimoAcesso(
   id: PerfilId,
 ): Promise<Result<void, string>> {
   try {
-    db.prepare("UPDATE perfis SET ultimo_acesso = ? WHERE id = ?").run(
+    await db.execute("UPDATE perfis SET ultimo_acesso = ? WHERE id = ?", [
       new Date().toISOString(),
       id,
-    );
+    ]);
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao atualizar último acesso");
@@ -92,7 +93,7 @@ export async function atualizarUltimoAcesso(
 
 export async function excluirPerfil(db: Database, id: PerfilId): Promise<Result<void, string>> {
   try {
-    db.prepare("DELETE FROM perfis WHERE id = ?").run(id);
+    await db.execute("DELETE FROM perfis WHERE id = ?", [id]);
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao excluir perfil");

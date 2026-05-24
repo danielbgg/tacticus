@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { PerfilId } from "@/shared/types/branded";
@@ -13,7 +13,7 @@ export interface VisaoGeral {
 }
 
 export interface EntradaHeatmap {
-  data: string; // ISO date YYYY-MM-DD
+  data: string;
   tentativas: number;
   acertos: number;
 }
@@ -40,30 +40,34 @@ export async function buscarVisaoGeral(
   perfilId: PerfilId,
 ): Promise<Result<VisaoGeral, string>> {
   try {
-    const statusRow = db
-      .prepare(
-        `
-      SELECT
+    const rows = await db.select<
+      Array<{
+        dominados: number;
+        em_progresso: number;
+        nao_vistos: number;
+        total_tentativas: number | null;
+        total_acertos: number | null;
+      }>
+    >(
+      `SELECT
         COUNT(CASE WHEN status = 'dominado' THEN 1 END) as dominados,
         COUNT(CASE WHEN status = 'em_progresso' THEN 1 END) as em_progresso,
         COUNT(CASE WHEN status = 'nao_visto' THEN 1 END) as nao_vistos,
         SUM(total_tentativas) as total_tentativas,
         SUM(total_acertos) as total_acertos
       FROM progresso_exercicio
-      WHERE perfil_id = ?
-    `,
-      )
-      .get(perfilId) as {
-      dominados: number;
-      em_progresso: number;
-      nao_vistos: number;
-      total_tentativas: number | null;
-      total_acertos: number | null;
+      WHERE perfil_id = ?`,
+      [perfilId],
+    );
+    const statusRow = rows[0] ?? {
+      dominados: 0,
+      em_progresso: 0,
+      nao_vistos: 0,
+      total_tentativas: null,
+      total_acertos: null,
     };
-
     const totalTentativas = statusRow.total_tentativas ?? 0;
     const totalAcertos = statusRow.total_acertos ?? 0;
-
     return ok({
       totalDominados: statusRow.dominados,
       totalEmProgresso: statusRow.em_progresso,
@@ -84,21 +88,17 @@ export async function buscarHeatmap(
 ): Promise<Result<EntradaHeatmap[], string>> {
   try {
     const dataInicio = new Date(Date.now() - diasAtras * 86400000).toISOString().split("T")[0]!;
-    const rows = db
-      .prepare(
-        `
-      SELECT
+    const rows = await db.select<Array<{ data: string; tentativas: number; acertos: number }>>(
+      `SELECT
         DATE(timestamp) as data,
         COUNT(*) as tentativas,
         SUM(CASE WHEN acertou = 1 THEN 1 ELSE 0 END) as acertos
       FROM tentativas
       WHERE perfil_id = ? AND DATE(timestamp) >= ?
       GROUP BY DATE(timestamp)
-      ORDER BY data ASC
-    `,
-      )
-      .all(perfilId, dataInicio) as { data: string; tentativas: number; acertos: number }[];
-
+      ORDER BY data ASC`,
+      [perfilId, dataInicio],
+    );
     return ok(rows.map((r) => ({ data: r.data, tentativas: r.tentativas, acertos: r.acertos })));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao buscar heatmap");
@@ -111,24 +111,16 @@ export async function buscarHistoricoSessoes(
   limite = 50,
 ): Promise<Result<HistoricoSessao[], string>> {
   try {
-    const rows = db
-      .prepare(
-        `
-      SELECT * FROM sessoes
-      WHERE perfil_id = ?
-      ORDER BY inicio DESC
-      LIMIT ?
-    `,
-      )
-      .all(perfilId, limite) as {
-      id: string;
-      inicio: string;
-      fim: string | null;
-      total_tentativas: number;
-      total_acertos: number;
-      modo: string;
-    }[];
-
+    const rows = await db.select<
+      Array<{
+        id: string;
+        inicio: string;
+        fim: string | null;
+        total_tentativas: number;
+        total_acertos: number;
+        modo: string;
+      }>
+    >(`SELECT * FROM sessoes WHERE perfil_id = ? ORDER BY inicio DESC LIMIT ?`, [perfilId, limite]);
     return ok(
       rows.map((r) => ({
         id: r.id,
@@ -151,10 +143,15 @@ export async function buscarPontosFracos(
   limite = 5,
 ): Promise<Result<PontoFraco[], string>> {
   try {
-    const rows = db
-      .prepare(
-        `
-      SELECT
+    const rows = await db.select<
+      Array<{
+        unidade_id: string;
+        nome_unidade: string;
+        total_tentativas: number;
+        taxa_acerto: number;
+      }>
+    >(
+      `SELECT
         e.unidade_id,
         u.nome as nome_unidade,
         COUNT(t.id) as total_tentativas,
@@ -166,16 +163,9 @@ export async function buscarPontosFracos(
       GROUP BY e.unidade_id
       HAVING total_tentativas >= 5
       ORDER BY taxa_acerto ASC
-      LIMIT ?
-    `,
-      )
-      .all(perfilId, limite) as {
-      unidade_id: string;
-      nome_unidade: string;
-      total_tentativas: number;
-      taxa_acerto: number;
-    }[];
-
+      LIMIT ?`,
+      [perfilId, limite],
+    );
     return ok(
       rows.map((r) => ({
         unidadeId: r.unidade_id,

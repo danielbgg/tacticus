@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { adaptDb } from "../helpers/db-adapter";
 import { criarSessao, encerrarSessao, listarSessoesPerfil } from "@/db/queries/sessoes";
 import { registrarTentativa } from "@/db/queries/tentativas";
-import { toPerfilId, toSessaoId, toExercicioId, toTentativaId } from "@/shared/types/branded";
+import { toPerfilId, toExercicioId } from "@/shared/types/branded";
 
 function criarDbMemoria() {
   const db = new Database(":memory:");
@@ -25,13 +26,15 @@ function criarDbMemoria() {
 }
 
 describe("queries/sessoes", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
   const perfilId = toPerfilId("p1");
 
   beforeEach(() => {
-    db = criarDbMemoria();
+    raw = criarDbMemoria();
+    db = adaptDb(raw);
   });
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
   it("criarSessao persiste com modo correto", async () => {
     const r = await criarSessao(db, { perfilId, modo: "treino" });
@@ -49,7 +52,7 @@ describe("queries/sessoes", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("listarSessoesPerfil retorna sessões ordenadas por início desc", async () => {
+  it("listarSessoesPerfil retorna sessões", async () => {
     await criarSessao(db, { perfilId, modo: "treino" });
     await criarSessao(db, { perfilId, modo: "revisao" });
     const r = await listarSessoesPerfil(db, perfilId);
@@ -59,14 +62,16 @@ describe("queries/sessoes", () => {
 });
 
 describe("queries/tentativas", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
   const perfilId = toPerfilId("p1");
   const exercicioId = toExercicioId("e1");
 
   beforeEach(() => {
-    db = criarDbMemoria();
+    raw = criarDbMemoria();
+    db = adaptDb(raw);
   });
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
   it("registrarTentativa persiste acerto", async () => {
     const sessao = await criarSessao(db, { perfilId, modo: "treino" });

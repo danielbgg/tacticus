@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { Partida } from "@/shared/types/domain";
@@ -37,7 +37,8 @@ export async function buscarPartida(
   id: PartidaId,
 ): Promise<Result<Partida | null, string>> {
   try {
-    const row = db.prepare("SELECT * FROM partidas WHERE id = ?").get(id) as PartidaRow | undefined;
+    const rows = await db.select<PartidaRow[]>("SELECT * FROM partidas WHERE id = ?", [id]);
+    const row = rows[0];
     return ok(row ? rowParaPartida(row) : null);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao buscar partida");
@@ -79,10 +80,11 @@ export async function buscarPartidasFiltradas(
 
     const where = condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
     const limite = filtro.limite ?? 100;
-    const rows = db
-      .prepare(`SELECT * FROM partidas ${where} ORDER BY ano DESC LIMIT ?`)
-      .all(...params, limite) as PartidaRow[];
-
+    params.push(limite);
+    const rows = await db.select<PartidaRow[]>(
+      `SELECT * FROM partidas ${where} ORDER BY ano DESC LIMIT ?`,
+      params,
+    );
     return ok(rows.map(rowParaPartida));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao filtrar partidas");

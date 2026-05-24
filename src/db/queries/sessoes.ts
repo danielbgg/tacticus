@@ -1,9 +1,8 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { Sessao, ModoSessao } from "@/shared/types/domain";
 import { toSessaoId, toPerfilId, type SessaoId, type PerfilId } from "@/shared/types/branded";
-import { randomUUID } from "crypto";
 
 interface SessaoRow {
   id: string;
@@ -32,13 +31,16 @@ export async function criarSessao(
   input: { perfilId: PerfilId; modo: ModoSessao },
 ): Promise<Result<Sessao, string>> {
   try {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const inicio = new Date().toISOString();
-    db.prepare(
+    await db.execute(
       `INSERT INTO sessoes (id, perfil_id, inicio, total_tentativas, total_acertos, modo)
        VALUES (?, ?, ?, 0, 0, ?)`,
-    ).run(id, input.perfilId, inicio, input.modo);
-    const row = db.prepare("SELECT * FROM sessoes WHERE id = ?").get(id) as SessaoRow;
+      [id, input.perfilId, inicio, input.modo],
+    );
+    const rows = await db.select<SessaoRow[]>("SELECT * FROM sessoes WHERE id = ?", [id]);
+    const row = rows[0];
+    if (!row) throw new Error("Sessão não encontrada após criação");
     return ok(rowParaSessao(row));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao criar sessão");
@@ -51,9 +53,10 @@ export async function encerrarSessao(
   totais: { totalTentativas: number; totalAcertos: number },
 ): Promise<Result<void, string>> {
   try {
-    db.prepare(
+    await db.execute(
       `UPDATE sessoes SET fim = ?, total_tentativas = ?, total_acertos = ? WHERE id = ?`,
-    ).run(new Date().toISOString(), totais.totalTentativas, totais.totalAcertos, sessaoId);
+      [new Date().toISOString(), totais.totalTentativas, totais.totalAcertos, sessaoId],
+    );
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao encerrar sessão");
@@ -66,9 +69,10 @@ export async function listarSessoesPerfil(
   limite = 50,
 ): Promise<Result<Sessao[], string>> {
   try {
-    const rows = db
-      .prepare("SELECT * FROM sessoes WHERE perfil_id = ? ORDER BY inicio DESC LIMIT ?")
-      .all(perfilId, limite) as SessaoRow[];
+    const rows = await db.select<SessaoRow[]>(
+      "SELECT * FROM sessoes WHERE perfil_id = ? ORDER BY inicio DESC LIMIT ?",
+      [perfilId, limite],
+    );
     return ok(rows.map(rowParaSessao));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao listar sessões");
@@ -80,9 +84,8 @@ export async function buscarSessao(
   sessaoId: SessaoId,
 ): Promise<Result<Sessao | null, string>> {
   try {
-    const row = db.prepare("SELECT * FROM sessoes WHERE id = ?").get(sessaoId) as
-      | SessaoRow
-      | undefined;
+    const rows = await db.select<SessaoRow[]>("SELECT * FROM sessoes WHERE id = ?", [sessaoId]);
+    const row = rows[0];
     return ok(row ? rowParaSessao(row) : null);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao buscar sessão");

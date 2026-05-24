@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { Area, Modulo, Unidade } from "@/shared/types/domain";
@@ -28,7 +28,7 @@ interface UnidadeRow {
 
 export async function listarAreas(db: Database): Promise<Result<Area[], string>> {
   try {
-    const rows = db.prepare("SELECT * FROM areas ORDER BY ordem").all() as AreaRow[];
+    const rows = await db.select<AreaRow[]>("SELECT * FROM areas ORDER BY ordem");
     return ok(
       rows.map((r) => ({
         id: toAreaId(r.id),
@@ -47,9 +47,10 @@ export async function listarModulosArea(
   areaId: string,
 ): Promise<Result<Modulo[], string>> {
   try {
-    const rows = db
-      .prepare("SELECT * FROM modulos WHERE area_id = ? ORDER BY ordem")
-      .all(areaId) as ModuloRow[];
+    const rows = await db.select<ModuloRow[]>(
+      "SELECT * FROM modulos WHERE area_id = ? ORDER BY ordem",
+      [areaId],
+    );
     return ok(
       rows.map((r) => ({
         id: toModuloId(r.id),
@@ -69,17 +70,15 @@ export async function listarUnidadesModulo(
   moduloId: string,
 ): Promise<Result<Unidade[], string>> {
   try {
-    const rows = db
-      .prepare(
-        `SELECT u.*, COUNT(e.id) as total_exercicios
+    const rows = await db.select<UnidadeRow[]>(
+      `SELECT u.*, COUNT(e.id) as total_exercicios
        FROM unidades u
        LEFT JOIN exercicios e ON e.unidade_id = u.id
        WHERE u.modulo_id = ?
        GROUP BY u.id
        ORDER BY u.ordem`,
-      )
-      .all(moduloId) as UnidadeRow[];
-
+      [moduloId],
+    );
     return ok(
       rows.map((r) => ({
         id: toUnidadeId(r.id),

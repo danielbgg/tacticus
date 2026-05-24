@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { adaptDb } from "../helpers/db-adapter";
 import { buscarPartida, buscarPartidasFiltradas } from "@/db/queries/partidas";
 import { toPartidaId } from "@/shared/types/branded";
 
@@ -20,12 +21,14 @@ function criarDbMemoria() {
 }
 
 describe("queries/partidas", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
 
   beforeEach(() => {
-    db = criarDbMemoria();
+    raw = criarDbMemoria();
+    db = adaptDb(raw);
   });
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
   it("buscarPartida retorna partida por id", async () => {
     const r = await buscarPartida(db, toPartidaId("p1"));

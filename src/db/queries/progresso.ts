@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { ProgressoExercicio, StatusExercicio } from "@/shared/types/domain";
@@ -38,9 +38,11 @@ export async function buscarProgressoExercicio(
   exercicioId: ExercicioId,
 ): Promise<Result<ProgressoExercicio | null, string>> {
   try {
-    const row = db
-      .prepare("SELECT * FROM progresso_exercicio WHERE perfil_id = ? AND exercicio_id = ?")
-      .get(perfilId, exercicioId) as ProgressoRow | undefined;
+    const rows = await db.select<ProgressoRow[]>(
+      "SELECT * FROM progresso_exercicio WHERE perfil_id = ? AND exercicio_id = ?",
+      [perfilId, exercicioId],
+    );
+    const row = rows[0];
     return ok(row ? rowParaProgresso(row) : null);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao buscar progresso");
@@ -52,7 +54,7 @@ export async function salvarProgresso(
   progresso: ProgressoExercicio,
 ): Promise<Result<void, string>> {
   try {
-    db.prepare(
+    await db.execute(
       `INSERT INTO progresso_exercicio
          (perfil_id, exercicio_id, status, acertos_consecutivos, total_acertos,
           total_tentativas, fator_facilidade, intervalo_dias, proxima_revisao, ultima_tentativa)
@@ -66,17 +68,18 @@ export async function salvarProgresso(
          intervalo_dias = excluded.intervalo_dias,
          proxima_revisao = excluded.proxima_revisao,
          ultima_tentativa = excluded.ultima_tentativa`,
-    ).run(
-      progresso.perfilId,
-      progresso.exercicioId,
-      progresso.status,
-      progresso.acertosConsecutivos,
-      progresso.totalAcertos,
-      progresso.totalTentativas,
-      progresso.fatorFacilidade,
-      progresso.intervaloDias,
-      progresso.proximaRevisao?.toISOString() ?? null,
-      progresso.ultimaTentativa?.toISOString() ?? null,
+      [
+        progresso.perfilId,
+        progresso.exercicioId,
+        progresso.status,
+        progresso.acertosConsecutivos,
+        progresso.totalAcertos,
+        progresso.totalTentativas,
+        progresso.fatorFacilidade,
+        progresso.intervaloDias,
+        progresso.proximaRevisao?.toISOString() ?? null,
+        progresso.ultimaTentativa?.toISOString() ?? null,
+      ],
     );
     return ok(undefined);
   } catch (e) {
@@ -89,9 +92,10 @@ export async function listarProgressoPerfil(
   perfilId: PerfilId,
 ): Promise<Result<ProgressoExercicio[], string>> {
   try {
-    const rows = db
-      .prepare("SELECT * FROM progresso_exercicio WHERE perfil_id = ?")
-      .all(perfilId) as ProgressoRow[];
+    const rows = await db.select<ProgressoRow[]>(
+      "SELECT * FROM progresso_exercicio WHERE perfil_id = ?",
+      [perfilId],
+    );
     return ok(rows.map(rowParaProgresso));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao listar progresso");
@@ -104,12 +108,11 @@ export async function listarExerciciosParaRevisao(
 ): Promise<Result<ProgressoExercicio[], string>> {
   try {
     const agora = new Date().toISOString();
-    const rows = db
-      .prepare(
-        `SELECT * FROM progresso_exercicio
-         WHERE perfil_id = ? AND status = 'dominado' AND proxima_revisao <= ?`,
-      )
-      .all(perfilId, agora) as ProgressoRow[];
+    const rows = await db.select<ProgressoRow[]>(
+      `SELECT * FROM progresso_exercicio
+       WHERE perfil_id = ? AND status = 'dominado' AND proxima_revisao <= ?`,
+      [perfilId, agora],
+    );
     return ok(rows.map(rowParaProgresso));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao listar exercícios para revisão");

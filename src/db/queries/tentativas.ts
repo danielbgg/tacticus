@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type Database from "@tauri-apps/plugin-sql";
 import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { Tentativa } from "@/shared/types/domain";
@@ -11,7 +11,6 @@ import {
   type PerfilId,
   type ExercicioId,
 } from "@/shared/types/branded";
-import { randomUUID } from "crypto";
 
 interface TentativaRow {
   id: string;
@@ -51,22 +50,25 @@ export async function registrarTentativa(
   input: RegistrarTentativaInput,
 ): Promise<Result<Tentativa, string>> {
   try {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const timestamp = new Date().toISOString();
-    db.prepare(
+    await db.execute(
       `INSERT INTO tentativas (id, sessao_id, perfil_id, exercicio_id, timestamp, acertou, tempo_resposta_ms, dicas_usadas)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id,
-      input.sessaoId,
-      input.perfilId,
-      input.exercicioId,
-      timestamp,
-      input.acertou ? 1 : 0,
-      input.tempoRespostaMs,
-      input.dicasUsadas,
+      [
+        id,
+        input.sessaoId,
+        input.perfilId,
+        input.exercicioId,
+        timestamp,
+        input.acertou ? 1 : 0,
+        input.tempoRespostaMs,
+        input.dicasUsadas,
+      ],
     );
-    const row = db.prepare("SELECT * FROM tentativas WHERE id = ?").get(id) as TentativaRow;
+    const rows = await db.select<TentativaRow[]>("SELECT * FROM tentativas WHERE id = ?", [id]);
+    const row = rows[0];
+    if (!row) throw new Error("Tentativa não encontrada após inserção");
     return ok(rowParaTentativa(row));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao registrar tentativa");
@@ -78,9 +80,10 @@ export async function listarTentativasSessao(
   sessaoId: SessaoId,
 ): Promise<Result<Tentativa[], string>> {
   try {
-    const rows = db
-      .prepare("SELECT * FROM tentativas WHERE sessao_id = ? ORDER BY timestamp ASC")
-      .all(sessaoId) as TentativaRow[];
+    const rows = await db.select<TentativaRow[]>(
+      "SELECT * FROM tentativas WHERE sessao_id = ? ORDER BY timestamp ASC",
+      [sessaoId],
+    );
     return ok(rows.map(rowParaTentativa));
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao listar tentativas");

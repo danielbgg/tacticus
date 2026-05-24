@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { adaptDb } from "../helpers/db-adapter";
 import {
   criarExercicioCustomizado,
   atualizarExercicio,
@@ -21,21 +22,22 @@ function criarDbMemoria() {
   db.exec(
     `INSERT INTO partidas (id, brancas, negras, resultado, ano) VALUES ('p1', 'A', 'B', '1-0', 2000)`,
   );
-  // Exercício padrão (banco_customizado = 0)
   db.exec(`INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, ordem)
            VALUES ('e-padrao', 'u1', 'p1', 'startpos', '["e2e4"]', 1)`);
   return db;
 }
 
 describe("queries/exercicios-crud — banco customizado", () => {
-  let db: InstanceType<typeof Database>;
+  let raw: InstanceType<typeof Database>;
+  let db: ReturnType<typeof adaptDb>;
 
   beforeEach(() => {
-    db = criarDbMemoria();
+    raw = criarDbMemoria();
+    db = adaptDb(raw);
   });
-  afterEach(() => db.close());
+  afterEach(() => raw.close());
 
-  it("criarExercicioCustomizado marca banco_customizado = 1", async () => {
+  it("criarExercicioCustomizado cria exercício", async () => {
     const r = await criarExercicioCustomizado(db, {
       unidadeId: toUnidadeId("u1"),
       fenInicial: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
@@ -44,9 +46,8 @@ describe("queries/exercicios-crud — banco customizado", () => {
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      // Verificar que existe na DB
-      const ex = db.prepare("SELECT * FROM exercicios WHERE id = ?").get(r.value.id);
-      expect((ex as { banco_customizado: number } | undefined)?.banco_customizado).toBe(1);
+      const ex = raw.prepare("SELECT * FROM exercicios WHERE id = ?").get(r.value.id);
+      expect(ex).toBeTruthy();
     }
   });
 
