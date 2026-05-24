@@ -15,6 +15,8 @@ interface PainelExercicioProps {
   onDesistir: () => void;
   onProximo: () => void;
   onTentarNovamente: () => void;
+  unidadeNome?: string | undefined;
+  moduloNome?: string | undefined;
 }
 
 const MENSAGENS_ACERTO = ["Excelente!", "Perfeito!", "Muito bem!", "Correto!"];
@@ -69,14 +71,17 @@ function mensagemAleatoria(lista: string[]): string {
   return lista[Math.floor(Math.random() * lista.length)] ?? lista[0] ?? "";
 }
 
-function ladoDeFen(fen: string): "brancas" | "negras" {
-  return (fen.split(" ")[1] ?? "w") === "w" ? "brancas" : "negras";
-}
-
 function formatarTempo(ms: number): string {
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function formatarTempoMedio(totalMs: number, acertos: number): string {
+  if (acertos === 0) return "—";
+  const media = Math.round(totalMs / acertos / 1000);
+  if (media < 60) return `${media}s`;
+  return `${Math.floor(media / 60)}m ${media % 60}s`;
 }
 
 export function PainelExercicio({
@@ -84,6 +89,8 @@ export function PainelExercicio({
   onDesistir,
   onProximo,
   onTentarNovamente,
+  unidadeNome,
+  moduloNome,
 }: PainelExercicioProps) {
   const { t } = useTranslation("sessao");
   const {
@@ -95,6 +102,12 @@ export function PainelExercicio({
     errosNaSessao,
     dicasUsadas,
     iniciadaEm,
+    pausado,
+    pausar,
+    retomar,
+    exerciciosConcluidos,
+    totalExerciciosUnidade,
+    tempoTotalMs,
   } = useSessaoStore();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
 
@@ -102,15 +115,13 @@ export function PainelExercicio({
   const [tempoExercicio, setTempoExercicio] = useState("00:00");
   const exercicioIniciadoEm = useRef<Date>(new Date());
 
-  // Reseta o relógio do exercício quando muda de exercício
   useEffect(() => {
     exercicioIniciadoEm.current = new Date();
     setTempoExercicio("00:00");
   }, [exercicioAtual?.id]);
 
-  // Tick a cada segundo — pausa quando o exercício está concluído (acerto)
   useEffect(() => {
-    if (fase === "acerto" || fase === "aguardando") return;
+    if (fase === "acerto" || fase === "aguardando" || pausado) return;
     const id = setInterval(() => {
       if (iniciadaEm) {
         setTempoSessao(formatarTempo(Date.now() - iniciadaEm.getTime()));
@@ -118,7 +129,7 @@ export function PainelExercicio({
       setTempoExercicio(formatarTempo(Date.now() - exercicioIniciadoEm.current.getTime()));
     }, 1000);
     return () => clearInterval(id);
-  }, [iniciadaEm, fase]);
+  }, [iniciadaEm, fase, pausado]);
 
   const { data: progressoExercicio } = useQuery({
     queryKey: ["progresso-exercicio", perfilAtivoId, exercicioAtual?.id],
@@ -135,31 +146,110 @@ export function PainelExercicio({
 
   const total = fila.length + indiceAtual;
   const progresso = total > 0 ? (indiceAtual / total) * 100 : 0;
-  const lado = ladoDeFen(exercicioAtual.fenInicial);
   const vezesResolvido = progressoExercicio?.totalAcertos ?? 0;
   const rating = exercicioAtual.rating;
 
+  // Painel PCT — grade de exercícios da unidade
+  const totalUnidade = totalExerciciosUnidade;
+  const concluidosUnicos = exerciciosConcluidos.length;
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Relógios */}
-      <div className="flex items-center justify-between rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-2 text-xs font-mono">
-        <div className="flex flex-col items-center">
-          <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
-            Sessão
-          </span>
-          <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums">
-            {tempoSessao}
-          </span>
+    <div className="flex flex-col gap-3">
+      {/* Cabeçalho PCT: módulo › unidade */}
+      {(moduloNome || unidadeNome) && (
+        <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-3">
+          <div className="flex items-center gap-1 text-xs text-[var(--color-conteudo-terciario)] mb-1 uppercase tracking-wider">
+            Método PCT — Círculos
+          </div>
+          <div className="flex items-center gap-1.5 text-sm">
+            {moduloNome && (
+              <span className="font-semibold text-[var(--color-conteudo-primario)]">
+                {moduloNome}
+              </span>
+            )}
+            {moduloNome && unidadeNome && (
+              <span className="text-[var(--color-conteudo-terciario)]">›</span>
+            )}
+            {unidadeNome && (
+              <span className="text-[var(--color-conteudo-secundario)]">{unidadeNome}</span>
+            )}
+          </div>
+
+          {/* Grade de progresso da unidade */}
+          {totalUnidade > 0 && (
+            <div className="mt-3">
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: Math.min(totalUnidade, 30) }).map((_, i) => {
+                  const exercicioId = fila[i]?.id ?? exerciciosConcluidos[i];
+                  const concluido = exercicioId
+                    ? exerciciosConcluidos.includes(exercicioId)
+                    : i < concluidosUnicos;
+                  const atual = i === indiceAtual && fase !== "acerto";
+                  return (
+                    <div
+                      key={i}
+                      className={`h-4 w-4 rounded-sm transition-colors ${
+                        concluido
+                          ? "bg-green-500"
+                          : atual
+                            ? "bg-[var(--color-acento)] animate-pulse"
+                            : "bg-[var(--color-superficie-secundaria)] border border-[var(--color-borda)]"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-[var(--color-conteudo-terciario)]">
+                {concluidosUnicos}/{totalUnidade} concluídos nesta sessão
+              </p>
+            </div>
+          )}
         </div>
-        <div className="w-px h-8 bg-[var(--color-borda)]" />
-        <div className="flex flex-col items-center">
-          <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
-            Exercício
-          </span>
-          <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums">
-            {tempoExercicio}
-          </span>
+      )}
+
+      {/* Relógios + botão de pausa */}
+      <div className="flex items-center justify-between rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-3 py-2">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center">
+            <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
+              Sessão
+            </span>
+            <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums font-mono">
+              {tempoSessao}
+            </span>
+          </div>
+          <div className="w-px h-8 bg-[var(--color-borda)]" />
+          <div className="flex flex-col items-center">
+            <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
+              Exercício
+            </span>
+            <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums font-mono">
+              {tempoExercicio}
+            </span>
+          </div>
+          <div className="w-px h-8 bg-[var(--color-borda)]" />
+          <div className="flex flex-col items-center">
+            <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
+              Média
+            </span>
+            <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums font-mono">
+              {formatarTempoMedio(tempoTotalMs, acertosNaSessao)}
+            </span>
+          </div>
         </div>
+
+        <button
+          onClick={pausado ? retomar : pausar}
+          className={`flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${
+            pausado
+              ? "border-[var(--color-acento)] bg-[var(--color-acento)]/10 text-[var(--color-acento)] hover:bg-[var(--color-acento)]/20"
+              : "border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:border-[var(--color-acento)] hover:text-[var(--color-acento)]"
+          }`}
+          title={pausado ? "Retomar" : "Pausar"}
+          aria-label={pausado ? "Retomar sessão" : "Pausar sessão"}
+        >
+          {pausado ? "▶" : "⏸"}
+        </button>
       </div>
 
       {/* Progresso da sessão */}
@@ -173,17 +263,15 @@ export function PainelExercicio({
 
       <Progress value={progresso} label="Progresso da sessão" />
 
-      {/* Info do exercício: lado e dificuldade */}
-      <div className="flex items-center justify-between text-xs px-1">
-        <span className="font-semibold text-[var(--color-conteudo-secundario)]">
-          {lado === "brancas" ? "♙ Você joga com as Brancas" : "♟ Você joga com as Negras"}
-        </span>
-        {rating != null && (
-          <span className="rounded-full bg-[var(--color-superficie-secundaria)] px-2 py-0.5 text-[var(--color-conteudo-terciario)]">
+      {/* Rating */}
+      {rating != null && (
+        <div className="flex items-center gap-1.5 px-1 text-xs">
+          <span className="text-[var(--color-conteudo-terciario)]">Dificuldade:</span>
+          <span className="rounded-full bg-[var(--color-superficie-secundaria)] px-2 py-0.5 font-semibold text-[var(--color-conteudo-secundario)]">
             ★ {rating}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {fase === "acerto" && (
@@ -209,6 +297,10 @@ export function PainelExercicio({
                   ))}
                 </div>
               )}
+              <div className="mt-2 text-xs text-[var(--color-conteudo-terciario)]">
+                #{exercicioAtual.id}
+                {vezesResolvido > 0 && ` · Resolvido ${vezesResolvido}×`}
+              </div>
               <Button onClick={onProximo} variant="primary" className="mt-3">
                 {t("proximo")}
               </Button>

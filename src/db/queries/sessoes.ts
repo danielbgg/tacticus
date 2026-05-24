@@ -12,6 +12,7 @@ interface SessaoRow {
   total_tentativas: number;
   total_acertos: number;
   modo: ModoSessao;
+  unidade_id: string | null;
 }
 
 function rowParaSessao(row: SessaoRow): Sessao {
@@ -28,15 +29,15 @@ function rowParaSessao(row: SessaoRow): Sessao {
 
 export async function criarSessao(
   db: Database,
-  input: { perfilId: PerfilId; modo: ModoSessao },
+  input: { perfilId: PerfilId; modo: ModoSessao; unidadeId?: string },
 ): Promise<Result<Sessao, string>> {
   try {
     const id = crypto.randomUUID();
     const inicio = new Date().toISOString();
     await db.execute(
-      `INSERT INTO sessoes (id, perfil_id, inicio, total_tentativas, total_acertos, modo)
-       VALUES (?, ?, ?, 0, 0, ?)`,
-      [id, input.perfilId, inicio, input.modo],
+      `INSERT INTO sessoes (id, perfil_id, inicio, total_tentativas, total_acertos, modo, unidade_id)
+       VALUES (?, ?, ?, 0, 0, ?, ?)`,
+      [id, input.perfilId, inicio, input.modo, input.unidadeId ?? null],
     );
     const rows = await db.select<SessaoRow[]>("SELECT * FROM sessoes WHERE id = ?", [id]);
     const row = rows[0];

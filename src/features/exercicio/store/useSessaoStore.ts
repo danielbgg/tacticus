@@ -16,6 +16,10 @@ interface EstadoSessao {
   acertosNaSessao: number;
   errosNaSessao: number;
   iniciadaEm: Date | null;
+  pausado: boolean;
+  exerciciosConcluidos: string[];
+  totalExerciciosUnidade: number;
+  tempoTotalMs: number;
 
   iniciarSessao: (sessaoId: SessaoId, modo: ModoSessao, fila: Exercicio[]) => void;
   avancarExercicio: () => void;
@@ -25,6 +29,8 @@ interface EstadoSessao {
   resetarParaTentando: () => void;
   encerrarSessao: () => void;
   setFase: (fase: FaseExercicio) => void;
+  pausar: () => void;
+  retomar: () => void;
 }
 
 export const useSessaoStore = create<EstadoSessao>((set, get) => ({
@@ -39,6 +45,10 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
   acertosNaSessao: 0,
   errosNaSessao: 0,
   iniciadaEm: null,
+  pausado: false,
+  exerciciosConcluidos: [],
+  totalExerciciosUnidade: 0,
+  tempoTotalMs: 0,
 
   iniciarSessao: (sessaoId, modo, fila) =>
     set({
@@ -53,6 +63,10 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
       acertosNaSessao: 0,
       errosNaSessao: 0,
       iniciadaEm: new Date(),
+      pausado: false,
+      exerciciosConcluidos: [],
+      totalExerciciosUnidade: fila.length,
+      tempoTotalMs: 0,
     }),
 
   avancarExercicio: () => {
@@ -66,11 +80,19 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
     });
   },
 
-  registrarAcerto: (tempoMs) =>
+  registrarAcerto: (tempoMs) => {
+    const { exercicioAtual, exerciciosConcluidos } = get();
+    const jaFeito = exercicioAtual ? exerciciosConcluidos.includes(exercicioAtual.id) : false;
     set((s) => ({
       fase: "acerto",
       acertosNaSessao: s.acertosNaSessao + 1,
-    })),
+      tempoTotalMs: s.tempoTotalMs + tempoMs,
+      exerciciosConcluidos:
+        exercicioAtual && !jaFeito
+          ? [...s.exerciciosConcluidos, exercicioAtual.id]
+          : s.exerciciosConcluidos,
+    }));
+  },
 
   registrarErro: (tempoMs) =>
     set((s) => ({
@@ -92,7 +114,14 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
       dicasUsadas: 0,
       fase: "aguardando",
       iniciadaEm: null,
+      pausado: false,
+      exerciciosConcluidos: [],
+      totalExerciciosUnidade: 0,
+      tempoTotalMs: 0,
     }),
 
   setFase: (fase) => set({ fase }),
+
+  pausar: () => set({ pausado: true }),
+  retomar: () => set({ pausado: false }),
 }));

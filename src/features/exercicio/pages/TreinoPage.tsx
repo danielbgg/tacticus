@@ -193,17 +193,6 @@ export function TreinoPage() {
   // fasePagina === "treinando"
   return (
     <div className="flex flex-col gap-4 p-6">
-      {/* Cabeçalho: módulo e unidade */}
-      {unidadeInfo && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-semibold text-[var(--color-conteudo-primario)]">
-            {unidadeInfo.moduloNome}
-          </span>
-          <span className="text-[var(--color-conteudo-terciario)]">›</span>
-          <span className="text-[var(--color-conteudo-secundario)]">{unidadeInfo.unidadeNome}</span>
-        </div>
-      )}
-
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
           <TabuleiroInterativo
@@ -225,6 +214,8 @@ export function TreinoPage() {
             onDesistir={handleDesistir}
             onProximo={handleProximo}
             onTentarNovamente={handleTentarNovamente}
+            unidadeNome={unidadeInfo?.unidadeNome}
+            moduloNome={unidadeInfo?.moduloNome}
           />
         </div>
       </div>

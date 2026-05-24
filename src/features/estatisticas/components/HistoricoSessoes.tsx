@@ -66,7 +66,7 @@ export function HistoricoSessoes() {
           <thead>
             <tr className="text-left text-xs text-[var(--color-conteudo-terciario)] border-b border-[var(--color-borda)]">
               <th className="pb-2 font-medium">Data</th>
-              <th className="pb-2 font-medium">Modo</th>
+              <th className="pb-2 font-medium">Treinado</th>
               <th className="pb-2 font-medium text-right">Tentativas</th>
               <th className="pb-2 font-medium text-right">Acertos</th>
               <th className="pb-2 font-medium text-right">Precisão</th>
@@ -94,10 +94,25 @@ export function HistoricoSessoes() {
                       {s.inicio.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </td>
-                  <td className="py-2">
-                    <span className="rounded-full bg-[var(--color-acento)]/10 px-2 py-0.5 text-xs text-[var(--color-acento)]">
-                      {MODO_LABEL[s.modo] ?? s.modo}
-                    </span>
+                  <td className="py-2 max-w-[160px]">
+                    {s.moduloNome || s.unidadeNome ? (
+                      <div>
+                        {s.moduloNome && (
+                          <div className="text-xs font-medium text-[var(--color-conteudo-primario)] truncate">
+                            {s.moduloNome}
+                          </div>
+                        )}
+                        {s.unidadeNome && (
+                          <div className="text-xs text-[var(--color-conteudo-terciario)] truncate">
+                            {s.unidadeNome}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="rounded-full bg-[var(--color-acento)]/10 px-2 py-0.5 text-xs text-[var(--color-acento)]">
+                        {MODO_LABEL[s.modo] ?? s.modo}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 text-right text-[var(--color-conteudo-secundario)]">
                     {s.totalTentativas}

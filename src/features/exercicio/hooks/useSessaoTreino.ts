@@ -20,14 +20,13 @@ import type { UnidadeId, SessaoId } from "@/shared/types/branded";
 export interface DadosIniciar {
   sessaoPausada: SessaoPausada | null;
   filaFresca: Exercicio[];
-  novoSessaoId: SessaoId;
 }
 
 export function useSessaoTreino() {
   const store = useSessaoStore();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
 
-  // Carrega a fila e verifica sessão pausada — NÃO inicia a sessão ainda
+  // Carrega a fila e verifica sessão pausada — NÃO cria sessão no banco ainda
   const iniciarMutation = useMutation({
     mutationFn: async (unidadeId: UnidadeId): Promise<DadosIniciar> => {
       if (!perfilAtivoId) throw new Error("Nenhum perfil ativo");
@@ -55,18 +54,15 @@ export function useSessaoTreino() {
         filaFresca.push(ex);
       }
 
-      const rSessao = await criarSessao(db as never, { perfilId: perfilAtivoId, modo: "treino" });
-      const novoSessaoId = rSessao.ok ? rSessao.value.id : (crypto.randomUUID() as SessaoId);
-
-      return { sessaoPausada, filaFresca, novoSessaoId };
+      return { sessaoPausada, filaFresca };
     },
   });
 
-  // Chamado após o usuário escolher retomar ou começar do zero
+  // Chamado após o usuário escolher retomar ou começar do zero — cria sessão aqui
   const confirmar = useCallback(
     async (unidadeId: UnidadeId, opcao: "retomar" | "fresco") => {
       if (!iniciarMutation.data || !perfilAtivoId) return;
-      const { sessaoPausada, filaFresca, novoSessaoId } = iniciarMutation.data;
+      const { sessaoPausada, filaFresca } = iniciarMutation.data;
       const db = await getDb();
 
       if (sessaoPausada) {
@@ -76,7 +72,13 @@ export function useSessaoTreino() {
       if (opcao === "retomar" && sessaoPausada) {
         store.iniciarSessao(sessaoPausada.sessaoId, "treino", sessaoPausada.fila);
       } else {
-        store.iniciarSessao(novoSessaoId, "treino", filaFresca);
+        const rSessao = await criarSessao(db as never, {
+          perfilId: perfilAtivoId,
+          modo: "treino",
+          unidadeId,
+        });
+        const sessaoId = rSessao.ok ? rSessao.value.id : (crypto.randomUUID() as SessaoId);
+        store.iniciarSessao(sessaoId, "treino", filaFresca);
       }
     },
     [iniciarMutation.data, perfilAtivoId, store],
@@ -89,12 +91,13 @@ export function useSessaoTreino() {
         useSessaoStore.getState();
       if (!perfilAtivoId) return;
 
+      const totalTentativas = acertosNaSessao + errosNaSessao;
       const db = await getDb();
 
-      // Persiste os totais reais da sessão no banco
-      if (sessaoId) {
+      // Só encerra a sessão se houver pelo menos uma tentativa — evita linhas zeradas no histórico
+      if (sessaoId && totalTentativas > 0) {
         await encerrarSessao(db as never, sessaoId, {
-          totalTentativas: acertosNaSessao + errosNaSessao,
+          totalTentativas,
           totalAcertos: acertosNaSessao,
         });
       }

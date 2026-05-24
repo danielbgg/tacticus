@@ -30,7 +30,7 @@ export interface TabuleiroProps {
 const CORES_ESTILO: Record<EstiloTabuleiro, { claro: string; escuro: string; moldura: string }> = {
   classico: { claro: "#f0d9b5", escuro: "#b58863", moldura: "#3d2009" },
   neo: { claro: "#dee3e6", escuro: "#8ca2ad", moldura: "#1a2530" },
-  madeira: { claro: "#ead9b5", escuro: "#a0522d", moldura: "#3b1a08" },
+  madeira: { claro: "#dfc090", escuro: "#7a3b10", moldura: "#1e0900" },
   marmore: { claro: "#f5f0e8", escuro: "#a8a8a8", moldura: "#444444" },
   azul: { claro: "#dde8f0", escuro: "#4b7399", moldura: "#1a2a3a" },
   verde: { claro: "#ffffdd", escuro: "#86a666", moldura: "#2a3a1a" },
@@ -93,14 +93,20 @@ export function Tabuleiro({
 
   const estiloEscuro: Record<string, string> = {
     backgroundColor: cores.escuro,
-    backgroundImage:
-      "linear-gradient(135deg, rgba(0,0,0,0.08) 0%, transparent 50%, rgba(255,255,255,0.04) 100%)",
+    backgroundImage: [
+      "repeating-linear-gradient(105deg, transparent 0px, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px)",
+      "repeating-linear-gradient(15deg, transparent 0px, transparent 8px, rgba(255,255,255,0.03) 8px, rgba(255,255,255,0.03) 9px)",
+      "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, rgba(0,0,0,0.18) 100%)",
+    ].join(", "),
   };
 
   const estiloClaro: Record<string, string> = {
     backgroundColor: cores.claro,
-    backgroundImage:
-      "radial-gradient(ellipse at 60% 40%, rgba(255,255,255,0.25) 0%, transparent 70%)",
+    backgroundImage: [
+      "repeating-linear-gradient(105deg, transparent 0px, transparent 5px, rgba(0,0,0,0.04) 5px, rgba(0,0,0,0.04) 6px)",
+      "repeating-linear-gradient(15deg, transparent 0px, transparent 10px, rgba(0,0,0,0.025) 10px, rgba(0,0,0,0.025) 11px)",
+      "linear-gradient(135deg, rgba(255,255,255,0.35) 0%, transparent 50%, rgba(0,0,0,0.06) 100%)",
+    ].join(", "),
   };
 
   return (
@@ -113,12 +119,15 @@ export function Tabuleiro({
       <div
         style={{
           backgroundColor: cores.moldura,
-          padding: "clamp(8px, 2%, 16px)",
-          borderRadius: 6,
+          padding: "clamp(10px, 2.5%, 20px)",
+          borderRadius: 8,
           boxShadow:
-            "0 0 0 1px rgba(255,255,255,0.06) inset, 0 4px 24px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8)",
-          backgroundImage:
-            "repeating-linear-gradient(92deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px)",
+            "0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 0 2px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.7), 0 2px 4px rgba(0,0,0,0.9)",
+          backgroundImage: [
+            "repeating-linear-gradient(88deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 5px)",
+            "repeating-linear-gradient(178deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 12px)",
+            "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.1) 100%)",
+          ].join(", "),
         }}
       >
         <div ref={containerRef} className="w-full">

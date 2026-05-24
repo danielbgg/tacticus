@@ -4,7 +4,7 @@ import { Chess } from "chess.js";
 import { Tabuleiro } from "@/shared/components/Tabuleiro/Tabuleiro";
 import { useSessaoStore } from "@/features/exercicio/store/useSessaoStore";
 import { somLance, somCaptura, somAcerto, somErro } from "@/shared/lib/somTabuleiro";
-import type { EstiloTabuleiro, ConjuntoPecas } from "@/shared/types/domain";
+import type { EstiloTabuleiro } from "@/shared/types/domain";
 
 interface TabuleiroInterativoProps {
   onLanceCorreto: (tempoMs: number) => void;
@@ -12,7 +12,6 @@ interface TabuleiroInterativoProps {
   pedirSolucao?: boolean;
   chaveReset?: number;
   estiloTabuleiro?: EstiloTabuleiro;
-  conjuntoPecas?: ConjuntoPecas;
   modoDaltonico?: boolean;
 }
 
@@ -26,7 +25,6 @@ const COR_SELECIONADA = "rgba(20, 85, 30, 0.5)";
 const COR_DESTINO = "rgba(20, 85, 30, 0.3)";
 const COR_DESTINO_PECA = "rgba(20, 85, 30, 0.5)";
 
-// Peças de promoção: [código, símbolo branco, símbolo preto]
 const PECAS_PROMOCAO: [string, string, string][] = [
   ["q", "♕", "♛"],
   ["r", "♖", "♜"],
@@ -34,10 +32,8 @@ const PECAS_PROMOCAO: [string, string, string][] = [
   ["n", "♘", "♞"],
 ];
 
-// Compara moves ignorando anotações de xeque/mate — seed pode ter "Ra8#" mas chess.js gera "Ra8+"
 const normSAN = (s: string) => s.replace(/[+#]$/, "");
 
-// uci inclui peça de promoção quando aplicável (ex: "e7e8q")
 function matchMove(uci: string, san: string, lanceStr: string): boolean {
   return uci === lanceStr || normSAN(san) === normSAN(lanceStr);
 }
@@ -56,7 +52,7 @@ export function TabuleiroInterativo({
   estiloTabuleiro = "classico",
   modoDaltonico = false,
 }: TabuleiroInterativoProps) {
-  const { exercicioAtual, fase } = useSessaoStore();
+  const { exercicioAtual, fase, pausado } = useSessaoStore();
   const [fenAtual, setFenAtual] = useState(exercicioAtual?.fenInicial ?? "");
   const [indiceEsperado, setIndiceEsperado] = useState(0);
   const [ultimoLance, setUltimoLance] = useState<{ origem: Square; destino: Square } | null>(null);
@@ -66,12 +62,21 @@ export function TabuleiroInterativo({
   const inicioRef = useRef<number>(Date.now());
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Orientação fixada pelo turno do FEN inicial — não muda durante o exercício
   const orientacao = useMemo<"white" | "black">(() => {
     if (!exercicioAtual) return "white";
     const chess = new Chess(exercicioAtual.fenInicial);
     return chess.turn() === "w" ? "white" : "black";
   }, [exercicioAtual?.id]);
+
+  // Turno atual do FEN em exibição (para indicador dinâmico)
+  const turnoAtualFen = useMemo<"w" | "b">(() => {
+    if (!fenAtual) return "w";
+    try {
+      return new Chess(fenAtual).turn();
+    } catch {
+      return "w";
+    }
+  }, [fenAtual]);
 
   useEffect(() => {
     if (exercicioAtual) {
@@ -87,7 +92,6 @@ export function TabuleiroInterativo({
     }
   }, [exercicioAtual?.id, chaveReset]);
 
-  // Exibe a solução completa quando pedirSolucao ativa
   useEffect(() => {
     if (!pedirSolucao || !exercicioAtual) return;
 
@@ -101,7 +105,6 @@ export function TabuleiroInterativo({
 
     for (const lanceStr of lancesPendentes) {
       const lances = chess.moves({ verbose: true });
-      // Incluímos peça de promoção no UCI para matchMove funcionar com lances como "e7e8q"
       const match = lances.find((m) =>
         matchMove(m.from + m.to + (m.promotion ?? ""), m.san, lanceStr),
       );
@@ -133,14 +136,12 @@ export function TabuleiroInterativo({
     };
   }, [pedirSolucao]);
 
-  // Executa o lance após usuário escolher peça de promoção (ou diretamente se não for promoção)
   const executarLance = useCallback(
     (origem: Square, destino: Square, promotion?: string) => {
       if (!exercicioAtual) return;
 
       const chess = new Chess(fenAtual);
 
-      // Detecta promoção antes de executar: pede peça ao usuário
       if (!promotion && isMovimentoPromocao(chess, origem, destino)) {
         setPendingPromotion({ from: origem, to: destino, color: chess.turn() });
         return;
@@ -149,7 +150,6 @@ export function TabuleiroInterativo({
       const resultado = chess.move({ from: origem, to: destino, promotion: promotion ?? "q" });
       if (!resultado) return;
 
-      // UCI completo inclui peça de promoção quando aplicável
       const lanceUci = origem + destino + (resultado.promotion ?? "");
       const lanceEsperado = exercicioAtual.lancesSolucao[indiceEsperado];
       const tempoMs = Date.now() - inicioRef.current;
@@ -205,39 +205,36 @@ export function TabuleiroInterativo({
     [pendingPromotion, executarLance],
   );
 
-  // Drag-and-drop
-  // Retornar true = peça fica visualmente no destino (react-chessboard não faz snap-back)
-  // Retornar false = snap-back animado (peça volta à origem)
-  // O FEN real é sempre controlado por `fenAtual`; o retorno afeta apenas a animação de drag.
   const handlePieceDrop = useCallback(
     (from: Square, to: Square, _piece: Piece): boolean => {
+      if (pausado) return false;
       if (!exercicioAtual || (fase !== "tentando" && fase !== "dica")) return false;
       if (pendingPromotion) return false;
 
       const chess = new Chess(fenAtual);
 
-      // Promoção via drag: exibe diálogo e faz snap-back (peça volta à 7ª fileira)
       if (isMovimentoPromocao(chess, from, to)) {
         const peca = chess.get(from);
         if (peca) setPendingPromotion({ from, to, color: peca.color });
         return false;
       }
 
-      // Verifica legalidade sem executar o lance definitivo
-      const moveLegal = chess.move({ from, to }) !== null;
-      if (!moveLegal) return false; // lance ilegal: snap-back
+      // Verifica legalidade via lista de movimentos — mais robusto que chess.move()
+      const movimentos = chess.moves({ verbose: true });
+      const moveLegal = movimentos.some((m) => m.from === from && m.to === to);
+      if (!moveLegal) return false;
 
-      // Lance legal: executa a lógica de validação e mantém a peça no destino
       executarLance(from, to);
       return true;
     },
-    [exercicioAtual, fase, pendingPromotion, fenAtual, executarLance],
+    [pausado, exercicioAtual, fase, pendingPromotion, fenAtual, executarLance],
   );
 
   const handleSquareClick = useCallback(
     (square: Square) => {
+      if (pausado) return;
       if (!exercicioAtual || (fase !== "tentando" && fase !== "dica")) return;
-      if (pendingPromotion) return; // aguardando escolha de promoção
+      if (pendingPromotion) return;
 
       const chess = new Chess(fenAtual);
       const turnoAtual = chess.turn();
@@ -258,6 +255,7 @@ export function TabuleiroInterativo({
       }
     },
     [
+      pausado,
       exercicioAtual,
       fase,
       fenAtual,
@@ -272,7 +270,6 @@ export function TabuleiroInterativo({
 
   const chess = new Chess(fenAtual);
 
-  // Seta de dica: destaca o lance esperado quando fase === "dica"
   const setasDica = (() => {
     if (fase !== "dica") return [];
     const lanceEsperado = exercicioAtual.lancesSolucao[indiceEsperado];
@@ -297,43 +294,111 @@ export function TabuleiroInterativo({
     };
   }
 
-  return (
-    <div className="relative w-full">
-      <Tabuleiro
-        fen={fenAtual}
-        orientacao={orientacao}
-        estiloTabuleiro={estiloTabuleiro}
-        ultimoLance={ultimoLance}
-        casasDestacadas={casasDestacadas}
-        setas={setasDica}
-        modoDaltonico={modoDaltonico}
-        arrastavel={!pendingPromotion}
-        onSquareClick={handleSquareClick}
-        onPieceDrop={handlePieceDrop}
-      />
+  // Indicador do turno abaixo do tabuleiro
+  const eVezDoJogador = turnoAtualFen === (orientacao === "white" ? "w" : "b");
+  const nomeJogador = orientacao === "white" ? "Brancas" : "Negras";
+  const nomeOponente = orientacao === "white" ? "Negras" : "Brancas";
+  const iconeJogador = orientacao === "white" ? "♙" : "♟";
+  const iconeOponente = orientacao === "white" ? "♟" : "♙";
 
-      {/* Diálogo de promoção */}
-      {pendingPromotion && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--color-borda)] bg-[var(--color-superficie)] p-5 shadow-2xl">
-            <p className="text-sm font-semibold text-[var(--color-conteudo-primario)]">
-              Escolha a peça de promoção
-            </p>
-            <div className="flex gap-2">
-              {PECAS_PROMOCAO.map(([piece, branco, preto]) => (
-                <button
-                  key={piece}
-                  onClick={() => finalizarPromocao(piece)}
-                  className="flex h-16 w-16 items-center justify-center rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-5xl transition-colors hover:border-blue-500 hover:bg-blue-500/10"
-                  title={piece.toUpperCase()}
-                >
-                  {pendingPromotion.color === "w" ? branco : preto}
-                </button>
-              ))}
+  return (
+    <div className="flex flex-col items-center w-full gap-3">
+      <div className="relative w-full">
+        <Tabuleiro
+          fen={fenAtual}
+          orientacao={orientacao}
+          estiloTabuleiro={estiloTabuleiro}
+          ultimoLance={ultimoLance}
+          casasDestacadas={casasDestacadas}
+          setas={setasDica}
+          modoDaltonico={modoDaltonico}
+          arrastavel={!pendingPromotion && !pausado}
+          onSquareClick={handleSquareClick}
+          onPieceDrop={handlePieceDrop}
+        />
+
+        {/* Overlay de pausa */}
+        {pausado && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center rounded-lg backdrop-blur-sm bg-black/50">
+            <div className="text-5xl mb-3 text-white select-none">⏸</div>
+            <p className="text-xl font-bold text-white tracking-wide">Pausado</p>
+          </div>
+        )}
+
+        {/* Diálogo de promoção */}
+        {pendingPromotion && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-black/40">
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--color-borda)] bg-[var(--color-superficie)] p-5 shadow-2xl">
+              <p className="text-sm font-semibold text-[var(--color-conteudo-primario)]">
+                Escolha a peça de promoção
+              </p>
+              <div className="flex gap-2">
+                {PECAS_PROMOCAO.map(([piece, branco, preto]) => (
+                  <button
+                    key={piece}
+                    onClick={() => finalizarPromocao(piece)}
+                    className="flex h-16 w-16 items-center justify-center rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-5xl transition-colors hover:border-blue-500 hover:bg-blue-500/10"
+                    title={piece.toUpperCase()}
+                  >
+                    {pendingPromotion.color === "w" ? branco : preto}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Indicador do lado — abaixo do tabuleiro */}
+      <div className="flex items-center justify-center gap-6 w-full px-2">
+        <div
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+            eVezDoJogador
+              ? "bg-[var(--color-acento)]/15 border border-[var(--color-acento)]/40 shadow-sm"
+              : "opacity-50"
+          }`}
+        >
+          <span className="text-2xl leading-none" aria-hidden="true">
+            {iconeJogador}
+          </span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs text-[var(--color-conteudo-terciario)] uppercase tracking-wider">
+              Você joga com as
+            </span>
+            <span className="text-base font-bold text-[var(--color-conteudo-primario)]">
+              {nomeJogador}
+            </span>
+          </div>
+          {eVezDoJogador && (
+            <span className="ml-1 h-2 w-2 rounded-full bg-[var(--color-acento)] animate-pulse" />
+          )}
         </div>
-      )}
+
+        <div className="text-[var(--color-conteudo-terciario)] text-lg select-none">vs</div>
+
+        <div
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+            !eVezDoJogador
+              ? "bg-[var(--color-superficie-secundaria)] border border-[var(--color-borda)]"
+              : "opacity-40"
+          }`}
+        >
+          <span className="text-2xl leading-none" aria-hidden="true">
+            {iconeOponente}
+          </span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs text-[var(--color-conteudo-terciario)] uppercase tracking-wider">
+              Oponente
+            </span>
+            <span className="text-base font-bold text-[var(--color-conteudo-secundario)]">
+              {nomeOponente}
+            </span>
+          </div>
+          {!eVezDoJogador && (
+            <span className="ml-1 h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

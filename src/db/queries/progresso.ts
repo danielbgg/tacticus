@@ -106,6 +106,7 @@ export interface ProgressoUnidade {
   unidadeId: string;
   total: number;
   dominados: number;
+  tentados: number;
 }
 
 export async function listarProgressoAgrupadoPorUnidade(
@@ -113,17 +114,25 @@ export async function listarProgressoAgrupadoPorUnidade(
   perfilId: PerfilId,
 ): Promise<Result<ProgressoUnidade[], string>> {
   try {
-    const rows = await db.select<{ unidade_id: string; total: number; dominados: number }[]>(
+    const rows = await db.select<
+      { unidade_id: string; total: number; dominados: number; tentados: number }[]
+    >(
       `SELECT e.unidade_id,
               COUNT(*) as total,
-              SUM(CASE WHEN pe.status = 'dominado' THEN 1 ELSE 0 END) as dominados
+              SUM(CASE WHEN pe.status = 'dominado' THEN 1 ELSE 0 END) as dominados,
+              SUM(CASE WHEN pe.total_tentativas > 0 THEN 1 ELSE 0 END) as tentados
        FROM exercicios e
        LEFT JOIN progresso_exercicio pe ON pe.exercicio_id = e.id AND pe.perfil_id = ?
        GROUP BY e.unidade_id`,
       [perfilId],
     );
     return ok(
-      rows.map((r) => ({ unidadeId: r.unidade_id, total: r.total, dominados: r.dominados })),
+      rows.map((r) => ({
+        unidadeId: r.unidade_id,
+        total: r.total,
+        dominados: r.dominados,
+        tentados: r.tentados,
+      })),
     );
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao listar progresso agrupado");

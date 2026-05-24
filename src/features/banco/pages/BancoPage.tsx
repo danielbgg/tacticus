@@ -100,6 +100,7 @@ export function BancoPage() {
   const { data: progressoUnidades } = useQuery({
     queryKey: ["progresso-unidades", perfilAtivoId],
     enabled: !!perfilAtivoId,
+    staleTime: 0,
     queryFn: async () => {
       if (!perfilAtivoId) return [] as ProgressoUnidade[];
       const db = await getDb();
@@ -209,8 +210,8 @@ export function BancoPage() {
                 <div className="grid grid-cols-9 gap-1.5">
                   {unidadesCirculos?.map((unidade, idx) => {
                     const prog = progressoUnidades?.find((p) => p.unidadeId === unidade.id);
-                    const concluida = prog && prog.dominados >= prog.total && prog.total > 0;
-                    const emProgresso = prog && prog.dominados > 0 && !concluida;
+                    const concluida = prog && prog.tentados >= prog.total && prog.total > 0;
+                    const emProgresso = prog && prog.tentados > 0 && !concluida;
                     return (
                       <button
                         key={unidade.id}
@@ -218,7 +219,7 @@ export function BancoPage() {
                           concluida
                             ? `${unidade.nome} — Concluída`
                             : emProgresso
-                              ? `${unidade.nome} — ${prog.dominados}/${prog.total}`
+                              ? `${unidade.nome} — ${prog.tentados}/${prog.total}`
                               : unidade.nome
                         }
                         onClick={() =>

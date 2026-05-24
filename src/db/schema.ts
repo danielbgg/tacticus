@@ -19,6 +19,7 @@ const MIGRATIONS = [
   () => import("./migrations/0005_sessoes_pausadas.sql?raw").then((m) => m.default),
   () => import("./migrations/0006_circles_puzzles.sql?raw").then((m) => m.default),
   () => import("./migrations/0007_circles_v2.sql?raw").then((m) => m.default),
+  () => import("./migrations/0008_sessao_unidade.sql?raw").then((m) => m.default),
 ];
 
 async function runMigrations(db: Database): Promise<void> {

@@ -10,7 +10,7 @@ function makePiece(src: string): PieceFn {
       width={squareWidth}
       height={squareWidth}
       draggable={false}
-      style={{ userSelect: "none" }}
+      style={{ userSelect: "none", pointerEvents: "none" }}
     />
   );
 }

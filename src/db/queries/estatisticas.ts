@@ -26,6 +26,8 @@ export interface HistoricoSessao {
   totalAcertos: number;
   modo: string;
   duracaoMs: number | null;
+  unidadeNome: string | null;
+  moduloNome: string | null;
 }
 
 export interface PontoFraco {
@@ -119,8 +121,19 @@ export async function buscarHistoricoSessoes(
         total_tentativas: number;
         total_acertos: number;
         modo: string;
+        unidade_nome: string | null;
+        modulo_nome: string | null;
       }>
-    >(`SELECT * FROM sessoes WHERE perfil_id = ? ORDER BY inicio DESC LIMIT ?`, [perfilId, limite]);
+    >(
+      `SELECT s.id, s.inicio, s.fim, s.total_tentativas, s.total_acertos, s.modo,
+              u.nome as unidade_nome, m.nome as modulo_nome
+       FROM sessoes s
+       LEFT JOIN unidades u ON u.id = s.unidade_id
+       LEFT JOIN modulos m ON m.id = u.modulo_id
+       WHERE s.perfil_id = ? AND s.total_tentativas > 0
+       ORDER BY s.inicio DESC LIMIT ?`,
+      [perfilId, limite],
+    );
     return ok(
       rows.map((r) => ({
         id: r.id,
@@ -130,6 +143,8 @@ export async function buscarHistoricoSessoes(
         totalAcertos: r.total_acertos,
         modo: r.modo,
         duracaoMs: r.fim ? new Date(r.fim).getTime() - new Date(r.inicio).getTime() : null,
+        unidadeNome: r.unidade_nome,
+        moduloNome: r.modulo_nome,
       })),
     );
   } catch (e) {
