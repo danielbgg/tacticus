@@ -85,43 +85,43 @@ export function useSessaoTreino() {
   );
 
   // Chamado no cleanup do TreinoPage — captura estado antes do primeiro await
-  const pausar = useCallback(
-    async (unidadeId: UnidadeId) => {
-      const { fila, indiceAtual, sessaoId, exercicioAtual, acertosNaSessao, errosNaSessao } =
-        useSessaoStore.getState();
-      if (!perfilAtivoId) return;
+  // IMPORTANTE: lê perfilAtivoId do store diretamente (não do closure) para evitar
+  // que o cleanup use o valor stale do render inicial, quando perfilAtivoId pode ser null
+  const pausar = useCallback(async (unidadeId: UnidadeId) => {
+    const { fila, indiceAtual, sessaoId, exercicioAtual, acertosNaSessao, errosNaSessao } =
+      useSessaoStore.getState();
+    const perfilAtivoId = usePerfilStore.getState().perfilAtivoId;
+    if (!perfilAtivoId) return;
 
-      const totalTentativas = acertosNaSessao + errosNaSessao;
-      const db = await getDb();
+    const totalTentativas = acertosNaSessao + errosNaSessao;
+    const db = await getDb();
 
-      // Só encerra a sessão se houver pelo menos uma tentativa — evita linhas zeradas no histórico
-      if (sessaoId && totalTentativas > 0) {
-        await encerrarSessao(db as never, sessaoId, {
-          totalTentativas,
-          totalAcertos: acertosNaSessao,
-        });
-      }
-
-      if (!sessaoId || !exercicioAtual) {
-        await removerSessaoPausada(db as never, perfilAtivoId, unidadeId);
-        return;
-      }
-
-      const filaRestante = fila.slice(indiceAtual);
-      if (filaRestante.length === 0) {
-        await removerSessaoPausada(db as never, perfilAtivoId, unidadeId);
-        return;
-      }
-
-      await salvarSessaoPausada(db as never, {
-        perfilId: perfilAtivoId,
-        unidadeId,
-        sessaoId,
-        fila: filaRestante,
+    // Só encerra a sessão se houver pelo menos uma tentativa — evita linhas zeradas no histórico
+    if (sessaoId && totalTentativas > 0) {
+      await encerrarSessao(db as never, sessaoId, {
+        totalTentativas,
+        totalAcertos: acertosNaSessao,
       });
-    },
-    [perfilAtivoId],
-  );
+    }
+
+    if (!sessaoId || !exercicioAtual) {
+      await removerSessaoPausada(db as never, perfilAtivoId, unidadeId);
+      return;
+    }
+
+    const filaRestante = fila.slice(indiceAtual);
+    if (filaRestante.length === 0) {
+      await removerSessaoPausada(db as never, perfilAtivoId, unidadeId);
+      return;
+    }
+
+    await salvarSessaoPausada(db as never, {
+      perfilId: perfilAtivoId,
+      unidadeId,
+      sessaoId,
+      fila: filaRestante,
+    });
+  }, []);
 
   const processarLance = useCallback(
     async (acertou: boolean, tempoMs: number) => {

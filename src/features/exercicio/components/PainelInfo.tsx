@@ -22,7 +22,9 @@ export function PainelInfo({ nomArea, nomeModulo, nomeUnidade }: PainelInfoProps
   const [mostrarAnalise, setMostrarAnalise] = useState(false);
 
   const podeAnalisar = fase === "acerto";
-  const { avaliacao, pronto, analisando, analisar, parar } = useMotor({ ativo: mostrarAnalise });
+  const { status: statusMotor, melhorAvaliacao: avaliacao, analisar, parar } = useMotor();
+  const pronto = statusMotor === "pronto";
+  const analisando = statusMotor === "analisando";
 
   const filaEstado: FilaSessao = { exercicios: fila, indice: indiceAtual };
   const { atual, total, percentual } = calcProgresso(filaEstado);
@@ -34,13 +36,13 @@ export function PainelInfo({ nomArea, nomeModulo, nomeUnidade }: PainelInfoProps
       setMostrarAnalise(true);
       // analisar será chamado quando o worker estiver pronto (via useEffect no hook)
     } else if (avaliacao === null && pronto) {
-      analisar(exercicioAtual!.fenInicial);
+      analisar(exercicioAtual!.fenInicial, 18);
     }
   }
 
   // Disparar análise quando worker ficar pronto e painel for aberto
   if (mostrarAnalise && pronto && avaliacao === null && !analisando) {
-    analisar(exercicioAtual.fenInicial);
+    analisar(exercicioAtual.fenInicial, 18);
   }
 
   function handleFecharAnalise() {

@@ -1,5 +1,6 @@
 import { useRef, useState, useLayoutEffect } from "react";
-import { Chessboard } from "react-chessboard";
+import { Chessboard, ChessboardDnDProvider } from "react-chessboard";
+import { TouchBackend } from "react-dnd-touch-backend";
 import type { Square, Piece, PromotionPieceOption } from "react-chessboard/dist/chessboard/types";
 import { cn } from "@/shared/lib/cn";
 import type { EstiloTabuleiro } from "@/shared/types/domain";
@@ -26,11 +27,14 @@ export interface TabuleiroProps {
   className?: string;
 }
 
+// TouchBackend config — usa pointer/mouse events em vez de HTML5 drag (compatível com WKWebView)
+const DND_BACKEND_OPTIONS = { enableMouseEvents: true };
+
 // Paleta de cores por estilo
 const CORES_ESTILO: Record<EstiloTabuleiro, { claro: string; escuro: string; moldura: string }> = {
   classico: { claro: "#f0d9b5", escuro: "#b58863", moldura: "#3d2009" },
   neo: { claro: "#dee3e6", escuro: "#8ca2ad", moldura: "#1a2530" },
-  madeira: { claro: "#dfc090", escuro: "#7a3b10", moldura: "#1e0900" },
+  madeira: { claro: "#f2d98e", escuro: "#c07c34", moldura: "#5c2e08" },
   marmore: { claro: "#f5f0e8", escuro: "#a8a8a8", moldura: "#444444" },
   azul: { claro: "#dde8f0", escuro: "#4b7399", moldura: "#1a2a3a" },
   verde: { claro: "#ffffdd", escuro: "#86a666", moldura: "#2a3a1a" },
@@ -91,21 +95,23 @@ export function Tabuleiro({
     s.cor ?? "rgb(0,128,0)",
   ]);
 
+  // Veio de madeira nas casas escuras
   const estiloEscuro: Record<string, string> = {
     backgroundColor: cores.escuro,
     backgroundImage: [
-      "repeating-linear-gradient(105deg, transparent 0px, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px)",
-      "repeating-linear-gradient(15deg, transparent 0px, transparent 8px, rgba(255,255,255,0.03) 8px, rgba(255,255,255,0.03) 9px)",
-      "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, rgba(0,0,0,0.18) 100%)",
+      "repeating-linear-gradient(108deg, transparent 0px, transparent 5px, rgba(0,0,0,0.09) 5px, rgba(0,0,0,0.09) 6px)",
+      "repeating-linear-gradient(165deg, transparent 0px, transparent 11px, rgba(255,255,255,0.05) 11px, rgba(255,255,255,0.05) 12px)",
+      "linear-gradient(150deg, rgba(255,200,80,0.12) 0%, transparent 35%, rgba(0,0,0,0.15) 100%)",
     ].join(", "),
   };
 
+  // Veio de madeira nas casas claras
   const estiloClaro: Record<string, string> = {
     backgroundColor: cores.claro,
     backgroundImage: [
-      "repeating-linear-gradient(105deg, transparent 0px, transparent 5px, rgba(0,0,0,0.04) 5px, rgba(0,0,0,0.04) 6px)",
-      "repeating-linear-gradient(15deg, transparent 0px, transparent 10px, rgba(0,0,0,0.025) 10px, rgba(0,0,0,0.025) 11px)",
-      "linear-gradient(135deg, rgba(255,255,255,0.35) 0%, transparent 50%, rgba(0,0,0,0.06) 100%)",
+      "repeating-linear-gradient(108deg, transparent 0px, transparent 6px, rgba(160,90,10,0.09) 6px, rgba(160,90,10,0.09) 7px)",
+      "repeating-linear-gradient(165deg, transparent 0px, transparent 13px, rgba(180,110,20,0.06) 13px, rgba(180,110,20,0.06) 14px)",
+      "linear-gradient(150deg, rgba(255,255,200,0.5) 0%, transparent 45%, rgba(120,60,0,0.08) 100%)",
     ].join(", "),
   };
 
@@ -124,30 +130,32 @@ export function Tabuleiro({
           boxShadow:
             "0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 0 2px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.7), 0 2px 4px rgba(0,0,0,0.9)",
           backgroundImage: [
-            "repeating-linear-gradient(88deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 5px)",
-            "repeating-linear-gradient(178deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 12px)",
-            "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.1) 100%)",
+            "repeating-linear-gradient(90deg, rgba(255,200,80,0.04) 0px, rgba(255,200,80,0.04) 1px, transparent 1px, transparent 6px)",
+            "repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 14px)",
+            "linear-gradient(175deg, rgba(255,200,100,0.08) 0%, transparent 40%, rgba(0,0,0,0.18) 100%)",
           ].join(", "),
         }}
       >
         <div ref={containerRef} className="w-full">
-          <Chessboard
-            boardWidth={largura}
-            position={fen}
-            boardOrientation={orientacao}
-            arePiecesDraggable={arrastavel}
-            customPieces={MAESTRO_PIECES}
-            {...(onSquareClick ? { onSquareClick } : {})}
-            {...(onPieceDrop ? { onPieceDrop } : {})}
-            {...(onPromotionPieceSelect ? { onPromotionPieceSelect } : {})}
-            customDarkSquareStyle={estiloEscuro}
-            customLightSquareStyle={estiloClaro}
-            customSquareStyles={estilosQuadrados}
-            customArrows={setasFormatadas}
-            animationDuration={prefersReducedMotion ? 0 : 150}
-            areArrowsAllowed={false}
-            showBoardNotation={true}
-          />
+          <ChessboardDnDProvider backend={TouchBackend} options={DND_BACKEND_OPTIONS}>
+            <Chessboard
+              boardWidth={largura}
+              position={fen}
+              boardOrientation={orientacao}
+              arePiecesDraggable={arrastavel}
+              customPieces={MAESTRO_PIECES}
+              {...(onSquareClick ? { onSquareClick } : {})}
+              {...(onPieceDrop ? { onPieceDrop } : {})}
+              {...(onPromotionPieceSelect ? { onPromotionPieceSelect } : {})}
+              customDarkSquareStyle={estiloEscuro}
+              customLightSquareStyle={estiloClaro}
+              customSquareStyles={estilosQuadrados}
+              customArrows={setasFormatadas}
+              animationDuration={prefersReducedMotion ? 0 : 150}
+              areArrowsAllowed={false}
+              showBoardNotation={true}
+            />
+          </ChessboardDnDProvider>
         </div>
       </div>
     </div>

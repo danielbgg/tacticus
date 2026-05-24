@@ -5,12 +5,16 @@ type PieceFn = (props: PieceProps) => ReactElement;
 
 function makePiece(src: string): PieceFn {
   return ({ squareWidth }) => (
-    <img
-      src={src}
-      width={squareWidth}
-      height={squareWidth}
-      draggable={false}
-      style={{ userSelect: "none", pointerEvents: "none" }}
+    <div
+      style={{
+        width: squareWidth,
+        height: squareWidth,
+        backgroundImage: `url("${src}")`,
+        backgroundSize: "100%",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        userSelect: "none",
+      }}
     />
   );
 }

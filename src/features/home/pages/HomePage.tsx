@@ -24,20 +24,55 @@ interface PontoFracoHome {
 
 async function buscarUltimaUnidade(perfilId: PerfilId): Promise<UltimaUnidade | null> {
   const db = await getDb();
-  const rows = await db.select<Array<{ unidade_id: string; nome_unidade: string; ts: string }>>(
-    `SELECT e.unidade_id, u.nome as nome_unidade, MAX(t.timestamp) as ts
+
+  // Unidade mais recente com status de conclusão
+  const rows = await db.select<
+    Array<{ unidade_id: string; nome_unidade: string; ts: string; total: number; tentados: number }>
+  >(
+    `SELECT u.id as unidade_id, u.nome as nome_unidade, MAX(t.timestamp) as ts,
+            (SELECT COUNT(*) FROM exercicios WHERE unidade_id = u.id) as total,
+            (SELECT COUNT(*) FROM progresso_exercicio pe2
+             JOIN exercicios ex ON pe2.exercicio_id = ex.id
+             WHERE ex.unidade_id = u.id AND pe2.perfil_id = ? AND pe2.total_tentativas > 0) as tentados
      FROM tentativas t
      JOIN exercicios e ON t.exercicio_id = e.id
      JOIN unidades u ON e.unidade_id = u.id
      WHERE t.perfil_id = ?
-     GROUP BY e.unidade_id
+     GROUP BY u.id
      ORDER BY ts DESC
+     LIMIT 1`,
+    [perfilId, perfilId],
+  );
+
+  const r = rows[0];
+  if (!r) return null;
+
+  const completa = r.total > 0 && r.tentados >= r.total;
+  if (!completa) {
+    return { unidadeId: r.unidade_id, nomeUnidade: r.nome_unidade, timestampUltima: r.ts };
+  }
+
+  // Unidade concluída — buscar próxima não iniciada em ordem
+  const proxima = await db.select<Array<{ id: string; nome: string }>>(
+    `SELECT u.id, u.nome
+     FROM unidades u
+     JOIN modulos m ON u.modulo_id = m.id
+     WHERE NOT EXISTS (
+       SELECT 1 FROM tentativas t2
+       JOIN exercicios e2 ON t2.exercicio_id = e2.id
+       WHERE e2.unidade_id = u.id AND t2.perfil_id = ?
+     )
+     ORDER BY m.ordem ASC, u.ordem ASC
      LIMIT 1`,
     [perfilId],
   );
-  const r = rows[0];
-  if (!r) return null;
-  return { unidadeId: r.unidade_id, nomeUnidade: r.nome_unidade, timestampUltima: r.ts };
+
+  if (proxima[0]) {
+    return { unidadeId: proxima[0].id, nomeUnidade: proxima[0].nome, timestampUltima: r.ts };
+  }
+
+  // Todas as unidades foram iniciadas — não mostrar botão Continuar
+  return null;
 }
 
 async function buscarStreak(perfilId: PerfilId): Promise<number> {
@@ -89,6 +124,7 @@ async function buscarPontosFracosHome(perfilId: PerfilId): Promise<PontoFracoHom
      WHERE t.perfil_id = ?
      GROUP BY e.unidade_id
      HAVING COUNT(t.id) >= 5
+       AND CAST(SUM(CASE WHEN t.acertou = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(t.id) AS INTEGER) < 85
      ORDER BY taxa_acerto ASC
      LIMIT 3`,
     [perfilId],

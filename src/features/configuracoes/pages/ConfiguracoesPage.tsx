@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import i18n from "i18next";
 import { Card } from "@/shared/components/Card/Card";
 import { Button } from "@/shared/components/Button/Button";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
+import { useExcluirPerfil } from "@/features/perfil/hooks/usePerfis";
 import { getDb } from "@/db/schema";
 import { salvarConfiguracoes } from "@/db/queries/configuracoes";
 import type {
@@ -48,9 +50,13 @@ const FEN_DEMO = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq 
 
 export function ConfiguracoesPage() {
   const { t } = useTranslation("comum");
+  const navigate = useNavigate();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
   const configuracoes = usePerfilStore((s) => s.configuracoes);
   const setConfiguracoes = usePerfilStore((s) => s.setConfiguracoes);
+  const setPerfilAtivo = usePerfilStore((s) => s.setPerfilAtivo);
+  const excluirPerfil = useExcluirPerfil();
+  const [excluindo, setExcluindo] = useState(false);
 
   const [config, setConfig] = useState<Partial<ConfiguracoesPerfil>>(
     configuracoes ?? {
@@ -231,6 +237,37 @@ export function ConfiguracoesPage() {
         </Button>
         {salvo && <span className="text-sm text-green-500">✓ Salvo com sucesso</span>}
       </div>
+
+      {/* Zona de perigo */}
+      <Card className="border-red-500/30">
+        <h2 className="mb-1 font-semibold text-red-500">Zona de perigo</h2>
+        <p className="mb-4 text-sm text-[var(--color-conteudo-secundario)]">
+          Exclui permanentemente o perfil e todos os dados associados: progresso, tentativas,
+          sessões e estatísticas. Esta ação não pode ser desfeita.
+        </p>
+        <Button
+          variant="ghost"
+          isLoading={excluindo}
+          onClick={async () => {
+            if (!perfilAtivoId) return;
+            const confirmado = window.confirm(
+              "Tem certeza? Todos os dados deste perfil serão excluídos permanentemente.",
+            );
+            if (!confirmado) return;
+            setExcluindo(true);
+            try {
+              await excluirPerfil.mutateAsync(perfilAtivoId);
+              setPerfilAtivo(null);
+              navigate({ to: "/" });
+            } finally {
+              setExcluindo(false);
+            }
+          }}
+          className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:border-red-500"
+        >
+          Excluir perfil e todos os dados
+        </Button>
+      </Card>
     </div>
   );
 }

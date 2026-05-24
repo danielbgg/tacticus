@@ -9,6 +9,8 @@ import type { EstiloTabuleiro } from "@/shared/types/domain";
 interface TabuleiroInterativoProps {
   onLanceCorreto: (tempoMs: number) => void;
   onLanceErrado: (tempoMs: number) => void;
+  onLancesChange?: (lances: string[]) => void;
+  onFenChange?: (fen: string) => void;
   pedirSolucao?: boolean;
   chaveReset?: number;
   estiloTabuleiro?: EstiloTabuleiro;
@@ -47,20 +49,42 @@ function isMovimentoPromocao(chess: Chess, from: Square, to: Square): boolean {
 export function TabuleiroInterativo({
   onLanceCorreto,
   onLanceErrado,
+  onLancesChange,
+  onFenChange,
   pedirSolucao = false,
   chaveReset = 0,
   estiloTabuleiro = "classico",
   modoDaltonico = false,
 }: TabuleiroInterativoProps) {
   const { exercicioAtual, fase, pausado } = useSessaoStore();
-  const [fenAtual, setFenAtual] = useState(exercicioAtual?.fenInicial ?? "");
+  const [fenAtual, setFenAtualRaw] = useState(exercicioAtual?.fenInicial ?? "");
+
+  const setFenAtual = useCallback(
+    (fen: string) => {
+      setFenAtualRaw(fen);
+      onFenChange?.(fen);
+    },
+    [onFenChange],
+  );
   const [indiceEsperado, setIndiceEsperado] = useState(0);
   const [ultimoLance, setUltimoLance] = useState<{ origem: Square; destino: Square } | null>(null);
   const [casaSelecionada, setCasaSelecionada] = useState<Square | null>(null);
   const [destinosLegais, setDestinosLegais] = useState<Square[]>([]);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
+  const [lancesJogados, setLancesJogados] = useState<string[]>([]);
   const inicioRef = useRef<number>(Date.now());
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const registrarLance = useCallback(
+    (san: string) => {
+      setLancesJogados((prev) => {
+        const novo = [...prev, san];
+        onLancesChange?.(novo);
+        return novo;
+      });
+    },
+    [onLancesChange],
+  );
 
   const orientacao = useMemo<"white" | "black">(() => {
     if (!exercicioAtual) return "white";
@@ -80,12 +104,15 @@ export function TabuleiroInterativo({
 
   useEffect(() => {
     if (exercicioAtual) {
-      setFenAtual(exercicioAtual.fenInicial);
+      setFenAtualRaw(exercicioAtual.fenInicial);
+      onFenChange?.(exercicioAtual.fenInicial);
       setIndiceEsperado(0);
       setUltimoLance(null);
       setCasaSelecionada(null);
       setDestinosLegais([]);
       setPendingPromotion(null);
+      setLancesJogados([]);
+      onLancesChange?.([]);
       inicioRef.current = Date.now();
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
@@ -162,6 +189,7 @@ export function TabuleiroInterativo({
       if (matchMove(lanceUci, resultado.san, lanceEsperado ?? "")) {
         resultado.captured ? somCaptura() : somLance();
         setFenAtual(chess.fen());
+        registrarLance(resultado.san);
         const proximo = indiceEsperado + 1;
         if (proximo >= exercicioAtual.lancesSolucao.length) {
           somAcerto();
@@ -181,6 +209,7 @@ export function TabuleiroInterativo({
                 setFenAtual(chess2.fen());
                 setUltimoLance({ origem: match.from as Square, destino: match.to as Square });
                 setIndiceEsperado(proximo + 1);
+                registrarLance(match.san);
               }
             }, 400);
             timeoutsRef.current.push(t);
@@ -191,10 +220,20 @@ export function TabuleiroInterativo({
         setFenAtual(exercicioAtual.fenInicial);
         setIndiceEsperado(0);
         setUltimoLance(null);
+        setLancesJogados([]);
+        onLancesChange?.([]);
         onLanceErrado(tempoMs);
       }
     },
-    [exercicioAtual, fenAtual, indiceEsperado, onLanceCorreto, onLanceErrado],
+    [
+      exercicioAtual,
+      fenAtual,
+      indiceEsperado,
+      onLanceCorreto,
+      onLanceErrado,
+      onLancesChange,
+      registrarLance,
+    ],
   );
 
   const finalizarPromocao = useCallback(

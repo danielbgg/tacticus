@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { TabuleiroInterativo } from "@/features/exercicio/components/TabuleiroInterativo";
 import { PainelExercicio } from "@/features/exercicio/components/PainelExercicio";
+import { PainelNotacao } from "@/features/exercicio/components/PainelNotacao";
+import { PainelMotor } from "@/features/exercicio/components/PainelMotor";
 import { useSessaoStore } from "@/features/exercicio/store/useSessaoStore";
 import { useSessaoTreino } from "@/features/exercicio/hooks/useSessaoTreino";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
@@ -44,6 +46,8 @@ export function TreinoPage() {
   const [mostrarSolucao, setMostrarSolucao] = useState(false);
   const [chaveReset, setChaveReset] = useState(0);
   const [fasePagina, setFasePagina] = useState<FasePagina>("carregando");
+  const [lancesNotacao, setLancesNotacao] = useState<string[]>([]);
+  const [fenAtual, setFenAtual] = useState(store.exercicioAtual?.fenInicial ?? "");
 
   useEffect(() => {
     iniciar.mutate(unidadeId as UnidadeId);
@@ -67,10 +71,21 @@ export function TreinoPage() {
     }
   }, [iniciar.isSuccess]);
 
-  // Detecta fim de sessão
+  // Detecta fim de sessão e persiste no banco imediatamente (não aguarda cleanup)
   useEffect(() => {
     if (fasePagina === "treinando" && store.exercicioAtual === null && store.fila.length > 0) {
       setFasePagina("concluida");
+      // Encerra a sessão no banco proativamente — o cleanup é assíncrono e pode perder o estado
+      void (async () => {
+        const { sessaoId, acertosNaSessao, errosNaSessao } = useSessaoStore.getState();
+        const perfilAtivoId = usePerfilStore.getState().perfilAtivoId;
+        const totalTentativas = acertosNaSessao + errosNaSessao;
+        if (sessaoId && totalTentativas > 0 && perfilAtivoId) {
+          const { encerrarSessao: encerrar } = await import("@/db/queries/sessoes");
+          const db = await import("@/db/schema").then((m) => m.getDb());
+          await encerrar(db as never, sessaoId, { totalTentativas, totalAcertos: acertosNaSessao });
+        }
+      })();
     }
   }, [fasePagina, store.exercicioAtual, store.fila.length]);
 
@@ -198,6 +213,8 @@ export function TreinoPage() {
           <TabuleiroInterativo
             onLanceCorreto={handleLanceCorreto}
             onLanceErrado={handleLanceErrado}
+            onLancesChange={setLancesNotacao}
+            onFenChange={setFenAtual}
             pedirSolucao={mostrarSolucao}
             chaveReset={chaveReset}
             {...(configuracoes?.estiloTabuleiro != null
@@ -208,7 +225,7 @@ export function TreinoPage() {
               : {})}
           />
         </div>
-        <div className="w-72 shrink-0">
+        <div className="w-72 shrink-0 flex flex-col gap-3">
           <PainelExercicio
             onUsarDica={handleUsarDica}
             onDesistir={handleDesistir}
@@ -217,6 +234,8 @@ export function TreinoPage() {
             unidadeNome={unidadeInfo?.unidadeNome}
             moduloNome={unidadeInfo?.moduloNome}
           />
+          <PainelNotacao lances={lancesNotacao} />
+          {fenAtual && <PainelMotor fen={fenAtual} />}
         </div>
       </div>
     </div>
