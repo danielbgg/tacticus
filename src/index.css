@@ -2,43 +2,61 @@
 
 @layer base {
   :root {
+    /* tema claro (padrão) */
+    --color-fundo: #f8f9fa;
     --color-superficie-primaria: #ffffff;
-    --color-superficie-secundaria: #f9fafb;
-    --color-conteudo-primario: #111827;
-    --color-conteudo-secundario: #6b7280;
-    --color-acento: #16a34a;
-    --color-acento-hover: #15803d;
-    --color-erro: #dc2626;
-    --color-sucesso: #16a34a;
-    --color-borda: #e5e7eb;
-    --raio-card: 0.75rem;
+    --color-superficie-secundaria: #f1f3f5;
+    --color-borda: #dee2e6;
+    --color-conteudo-primario: #212529;
+    --color-conteudo-secundario: #495057;
+    --color-conteudo-terciario: #868e96;
+    --color-acento: #2b6cb0;
+    --color-acento-hover: #1a4e8a;
+    --color-erro: #c0392b;
+    --color-sucesso: #27ae60;
+    --raio-card: 12px;
   }
 
   [data-tema="escuro"] {
-    --color-superficie-primaria: #111827;
-    --color-superficie-secundaria: #1f2937;
-    --color-conteudo-primario: #f9fafb;
-    --color-conteudo-secundario: #9ca3af;
-    --color-borda: #374151;
+    --color-fundo: #0d1117;
+    --color-superficie-primaria: #161b22;
+    --color-superficie-secundaria: #21262d;
+    --color-borda: #30363d;
+    --color-conteudo-primario: #e6edf3;
+    --color-conteudo-secundario: #8b949e;
+    --color-conteudo-terciario: #6e7681;
+    --color-acento: #58a6ff;
+    --color-acento-hover: #388bfd;
+    --color-erro: #f85149;
+    --color-sucesso: #3fb950;
   }
 
   [data-tema="madeira"] {
-    --color-superficie-primaria: #fdf6e3;
-    --color-superficie-secundaria: #f0e6c8;
-    --color-conteudo-primario: #3b2a1a;
-    --color-conteudo-secundario: #7c5a3a;
-    --color-borda: #d4b896;
+    --color-fundo: #2d1b0e;
+    --color-superficie-primaria: #3d2510;
+    --color-superficie-secundaria: #4a2d14;
+    --color-borda: #6b3e1a;
+    --color-conteudo-primario: #f5deb3;
+    --color-conteudo-secundario: #c9956a;
+    --color-conteudo-terciario: #8b5a2b;
+    --color-acento: #d4a030;
+    --color-acento-hover: #b8861e;
+    --color-erro: #e74c3c;
+    --color-sucesso: #27ae60;
   }
 
   * {
     box-sizing: border-box;
   }
+
   body {
     margin: 0;
     font-family:
       system-ui,
       -apple-system,
       sans-serif;
+    background-color: var(--color-fundo);
+    color: var(--color-conteudo-primario);
   }
 
   @media (prefers-reduced-motion: reduce) {
