@@ -1,0 +1,23 @@
+{
+  "exercicio": "Exercise",
+  "encontreMelhorLance": "Find the best move",
+  "proximo": "Next",
+  "tentar": "Try",
+  "dica": "Hint",
+  "desistir": "Give up",
+  "semExercicios": "No exercises available",
+  "sessaoConcluida": "Session complete!",
+  "voltarBanco": "Back to library",
+  "resumo": {
+    "titulo": "Session summary",
+    "acertos": "Correct",
+    "erros": "Incorrect",
+    "taxa": "Accuracy",
+    "tempo": "Time",
+    "xpGanho": "XP earned",
+    "continuar": "Continue"
+  },
+  "conquistas": {
+    "desbloqueada": "Achievement unlocked!"
+  }
+}

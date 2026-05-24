@@ -1,0 +1,20 @@
+{
+  "dica": {
+    "usar": "Usar pista",
+    "nivel1": "Pieza destacada",
+    "nivel2": "Movimiento mostrado",
+    "nivel3": "Movimiento jugado (cuenta como error)"
+  },
+  "feedback": {
+    "acerto": "¡Correcto!",
+    "erro": "¡Casi! Inténtalo de nuevo.",
+    "dominado": "¡Dominado!"
+  },
+  "origemPartida": {
+    "titulo": "Partida de origen",
+    "vs": "vs.",
+    "verCompleta": "Ver partida completa",
+    "copiarFen": "Copiar FEN",
+    "semOrigem": "Ejercicio personalizado"
+  }
+}

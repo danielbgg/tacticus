@@ -1,0 +1,18 @@
+{
+  "exercicio": "Exercício {{atual}} de {{total}}",
+  "encontreMelhorLance": "Encontre o melhor lance",
+  "proximo": "Próximo →",
+  "tentar": "Tentar novamente",
+  "dica": "Dica",
+  "desistir": "Mostrar solução",
+  "semExercicios": "Unidade sem exercícios",
+  "semExerciciosDescricao": "Esta unidade não tem exercícios disponíveis para você hoje.",
+  "sessaoConcluida": "Sessão concluída!",
+  "sessaoConcluidaResultado": "{{acertos}} acertos e {{erros}} erros nessa sessão.",
+  "voltarBanco": "Ver exercícios",
+  "modos": {
+    "treino": "Treino",
+    "revisao": "Revisão",
+    "livre": "Livre"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "selecao": {
+    "titulo": "Personal Chess Trainer",
+    "subtitulo": "Selecciona tu perfil para comenzar",
+    "criarPerfil": "Crear perfil",
+    "semPerfis": "Aún no hay perfiles",
+    "semPerfisDescricao": "Crea tu primer perfil para comenzar a entrenar"
+  },
+  "criar": {
+    "titulo": "Crear perfil",
+    "nome": "Nombre",
+    "nomePlaceholder": "Tu nombre",
+    "nivel": "Nivel",
+    "avatar": "Avatar",
+    "acertosParaDominar": "Aciertos para dominar",
+    "acertosDescricao": "Respuestas consecutivas correctas para dominar un ejercicio",
+    "botaoCriar": "Crear perfil",
+    "erroNomeVazio": "El nombre es obligatorio",
+    "erroNomeCurto": "El nombre debe tener al menos 2 caracteres"
+  },
+  "niveis": {
+    "iniciante": "Principiante",
+    "intermediario": "Intermedio",
+    "avancado": "Avanzado",
+    "expert": "Experto",
+    "mestre": "Maestro"
+  }
+}

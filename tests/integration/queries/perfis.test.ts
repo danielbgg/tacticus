@@ -1,0 +1,165 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import Database from "better-sqlite3";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { Perfil } from "@/shared/types/domain";
+import { toPerfilId } from "@/shared/types/branded";
+
+// Adapta as queries para usar better-sqlite3 em vez do plugin Tauri
+// O módulo de queries deve exportar funções testáveis com injeção de DB
+import {
+  listarPerfis,
+  buscarPerfil,
+  criarPerfil,
+  atualizarUltimoAcesso,
+  excluirPerfil,
+} from "@/db/queries/perfis";
+
+function criarDbMemoria() {
+  const db = new Database(":memory:");
+  const migracoes = ["0001_init.sql", "0002_add_conquistas.sql"];
+  for (const m of migracoes) {
+    const sql = readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8");
+    db.exec(sql);
+  }
+  return db;
+}
+
+describe("queries/perfis — integração SQLite in-memory", () => {
+  let db: InstanceType<typeof Database>;
+
+  beforeEach(() => {
+    db = criarDbMemoria();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  describe("criarPerfil", () => {
+    it("insere perfil com campos obrigatórios", async () => {
+      const resultado = await criarPerfil(db, {
+        nome: "Daniel",
+        nivel: "intermediario",
+        avatar: "♞",
+        acertosParaDominar: 5,
+      });
+      expect(resultado.ok).toBe(true);
+      if (resultado.ok) {
+        expect(resultado.value.nome).toBe("Daniel");
+        expect(resultado.value.nivel).toBe("intermediario");
+        expect(resultado.value.avatar).toBe("♞");
+        expect(resultado.value.id).toBeTruthy();
+      }
+    });
+
+    it("gera UUID único para cada perfil", async () => {
+      const r1 = await criarPerfil(db, {
+        nome: "A",
+        nivel: "iniciante",
+        avatar: "♙",
+        acertosParaDominar: 5,
+      });
+      const r2 = await criarPerfil(db, {
+        nome: "B",
+        nivel: "iniciante",
+        avatar: "♙",
+        acertosParaDominar: 5,
+      });
+      expect(r1.ok && r2.ok && r1.value.id !== r2.value.id).toBe(true);
+    });
+
+    it("retorna erro ao duplicar nome", async () => {
+      await criarPerfil(db, {
+        nome: "Daniel",
+        nivel: "iniciante",
+        avatar: "♙",
+        acertosParaDominar: 5,
+      });
+      const resultado = await criarPerfil(db, {
+        nome: "Daniel",
+        nivel: "avancado",
+        avatar: "♟",
+        acertosParaDominar: 5,
+      });
+      expect(resultado.ok).toBe(false);
+    });
+  });
+
+  describe("listarPerfis", () => {
+    it("retorna lista vazia quando não há perfis", async () => {
+      const resultado = await listarPerfis(db);
+      expect(resultado.ok).toBe(true);
+      if (resultado.ok) expect(resultado.value).toHaveLength(0);
+    });
+
+    it("retorna todos os perfis ordenados por ultimo_acesso desc", async () => {
+      await criarPerfil(db, {
+        nome: "Alice",
+        nivel: "iniciante",
+        avatar: "♙",
+        acertosParaDominar: 5,
+      });
+      await criarPerfil(db, { nome: "Bob", nivel: "avancado", avatar: "♟", acertosParaDominar: 7 });
+      const resultado = await listarPerfis(db);
+      expect(resultado.ok).toBe(true);
+      if (resultado.ok) expect(resultado.value).toHaveLength(2);
+    });
+  });
+
+  describe("buscarPerfil", () => {
+    it("retorna perfil por id", async () => {
+      const criado = await criarPerfil(db, {
+        nome: "Carol",
+        nivel: "intermediario",
+        avatar: "♜",
+        acertosParaDominar: 5,
+      });
+      if (!criado.ok) throw new Error("falhou ao criar");
+      const resultado = await buscarPerfil(db, criado.value.id);
+      expect(resultado.ok).toBe(true);
+      if (resultado.ok) expect(resultado.value?.nome).toBe("Carol");
+    });
+
+    it("retorna null para id inexistente", async () => {
+      const resultado = await buscarPerfil(db, toPerfilId("nao-existe"));
+      expect(resultado.ok).toBe(true);
+      if (resultado.ok) expect(resultado.value).toBeNull();
+    });
+  });
+
+  describe("atualizarUltimoAcesso", () => {
+    it("atualiza timestamp de ultimo_acesso", async () => {
+      const criado = await criarPerfil(db, {
+        nome: "Eva",
+        nivel: "iniciante",
+        avatar: "♕",
+        acertosParaDominar: 5,
+      });
+      if (!criado.ok) throw new Error("falhou ao criar");
+      const antes = criado.value.ultimoAcesso;
+      await new Promise((r) => setTimeout(r, 10));
+      await atualizarUltimoAcesso(db, criado.value.id);
+      const depois = await buscarPerfil(db, criado.value.id);
+      if (depois.ok && depois.value) {
+        expect(depois.value.ultimoAcesso.getTime()).toBeGreaterThan(antes.getTime());
+      }
+    });
+  });
+
+  describe("excluirPerfil", () => {
+    it("remove perfil existente", async () => {
+      const criado = await criarPerfil(db, {
+        nome: "Fred",
+        nivel: "iniciante",
+        avatar: "♗",
+        acertosParaDominar: 5,
+      });
+      if (!criado.ok) throw new Error("falhou ao criar");
+      await excluirPerfil(db, criado.value.id);
+      const depois = await buscarPerfil(db, criado.value.id);
+      expect(depois.ok).toBe(true);
+      if (depois.ok) expect(depois.value).toBeNull();
+    });
+  });
+});

@@ -1,0 +1,20 @@
+{
+  "titulo": "Selecionar Perfil",
+  "selecionePerfil": "Selecione seu perfil para continuar",
+  "semPerfis": "Nenhum perfil encontrado",
+  "semPerfisDescricao": "Crie seu primeiro perfil para começar a treinar",
+  "criarPerfil": "Criar novo perfil",
+  "novoPerfil": "Novo Perfil",
+  "novoPerfilDescricao": "Configure seu perfil para personalizar a experiência",
+  "voltar": "Voltar",
+  "erroCarregar": "Erro ao carregar perfis",
+  "erroAoCriar": "Erro ao criar perfil. Tente novamente.",
+  "confirmarExclusao": "Excluir o perfil \"{{nome}}\"? Esta ação não pode ser desfeita.",
+  "form": {
+    "nome": "Nome",
+    "nomePlaceholder": "Como quer ser chamado?",
+    "nivel": "Nível de jogo",
+    "acertosParaDominar": "Acertos para dominar",
+    "criar": "Criar perfil"
+  }
+}

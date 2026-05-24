@@ -1,0 +1,28 @@
+{
+  "titulo": "Estadísticas",
+  "semDados": "Sin datos aún",
+  "semDadosDescricao": "Completa sesiones de entrenamiento para ver tus estadísticas",
+  "erroCarregar": "Error al cargar las estadísticas",
+  "abas": {
+    "visaoGeral": "Resumen",
+    "historico": "Historial",
+    "pontosFracos": "Puntos débiles"
+  },
+  "heatmap": {
+    "titulo": "Actividad",
+    "tooltip": "{{count}} sesión(es) el {{data}}"
+  },
+  "pontosFracos": {
+    "titulo": "Puntos débiles",
+    "treinar": "Practicar",
+    "taxaAcerto": "Precisión"
+  },
+  "historico": {
+    "titulo": "Historial de sesiones",
+    "data": "Fecha",
+    "modo": "Modo",
+    "exercicios": "Ejercicios",
+    "acertos": "Correctos",
+    "tempo": "Duración"
+  }
+}

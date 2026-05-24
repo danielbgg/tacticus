@@ -1,0 +1,20 @@
+{
+  "dica": {
+    "usar": "Use hint",
+    "nivel1": "Piece highlighted",
+    "nivel2": "Move shown",
+    "nivel3": "Move played (counts as error)"
+  },
+  "feedback": {
+    "acerto": "Correct!",
+    "erro": "Not quite! Try again.",
+    "dominado": "Mastered!"
+  },
+  "origemPartida": {
+    "titulo": "Source game",
+    "vs": "vs.",
+    "verCompleta": "View full game",
+    "copiarFen": "Copy FEN",
+    "semOrigem": "Custom exercise"
+  }
+}

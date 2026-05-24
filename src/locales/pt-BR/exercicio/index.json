@@ -1,0 +1,16 @@
+{
+  "dica": {
+    "usar": "Usar dica",
+    "nivel1": "Peça destacada",
+    "nivel2": "Lance mostrado",
+    "nivel3": "Lance executado (conta como erro)"
+  },
+  "feedback": { "acerto": "Correto!", "erro": "Quase! Tente novamente.", "dominado": "Dominado!" },
+  "origemPartida": {
+    "titulo": "Partida de origem",
+    "vs": "vs.",
+    "verCompleta": "Ver partida completa",
+    "copiarFen": "Copiar FEN",
+    "semOrigem": "Exercício personalizado"
+  }
+}

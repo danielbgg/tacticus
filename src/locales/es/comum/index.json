@@ -1,0 +1,17 @@
+{
+  "app": { "nome": "Personal Chess Trainer" },
+  "acoes": {
+    "salvar": "Guardar",
+    "cancelar": "Cancelar",
+    "confirmar": "Confirmar",
+    "excluir": "Eliminar",
+    "editar": "Editar",
+    "voltar": "Volver",
+    "tentarNovamente": "Intentar de nuevo"
+  },
+  "estados": {
+    "carregando": "Cargando...",
+    "semDados": "No se encontraron datos",
+    "erro": "Ocurrió un error"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "titulo": "Statistics",
+  "semDados": "No data yet",
+  "semDadosDescricao": "Complete training sessions to see your stats",
+  "erroCarregar": "Failed to load statistics",
+  "abas": {
+    "visaoGeral": "Overview",
+    "historico": "History",
+    "pontosFracos": "Weak spots"
+  },
+  "heatmap": {
+    "titulo": "Activity",
+    "tooltip": "{{count}} session(s) on {{data}}"
+  },
+  "pontosFracos": {
+    "titulo": "Weak spots",
+    "treinar": "Practice",
+    "taxaAcerto": "Accuracy"
+  },
+  "historico": {
+    "titulo": "Session history",
+    "data": "Date",
+    "modo": "Mode",
+    "exercicios": "Exercises",
+    "acertos": "Correct",
+    "tempo": "Duration"
+  }
+}

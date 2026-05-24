@@ -1,0 +1,23 @@
+{
+  "exercicio": "Ejercicio",
+  "encontreMelhorLance": "Encuentra el mejor movimiento",
+  "proximo": "Siguiente",
+  "tentar": "Intentar",
+  "dica": "Pista",
+  "desistir": "Rendirse",
+  "semExercicios": "No hay ejercicios disponibles",
+  "sessaoConcluida": "¡Sesión completada!",
+  "voltarBanco": "Volver a la biblioteca",
+  "resumo": {
+    "titulo": "Resumen de sesión",
+    "acertos": "Correctos",
+    "erros": "Incorrectos",
+    "taxa": "Precisión",
+    "tempo": "Tiempo",
+    "xpGanho": "XP ganada",
+    "continuar": "Continuar"
+  },
+  "conquistas": {
+    "desbloqueada": "¡Logro desbloqueado!"
+  }
+}
