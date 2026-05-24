@@ -268,7 +268,9 @@ export function TabuleiroInterativo({
 
   if (!exercicioAtual) return null;
 
-  const chess = new Chess(fenAtual);
+  // fenAtual pode ser "" no primeiro render (antes do useEffect atualizar o estado)
+  const fenEfetivo = fenAtual || exercicioAtual.fenInicial;
+  const chess = new Chess(fenEfetivo);
 
   const setasDica = (() => {
     if (fase !== "dica") return [];
@@ -305,7 +307,7 @@ export function TabuleiroInterativo({
     <div className="flex flex-col items-center w-full gap-3">
       <div className="relative w-full">
         <Tabuleiro
-          fen={fenAtual}
+          fen={fenEfetivo}
           orientacao={orientacao}
           estiloTabuleiro={estiloTabuleiro}
           ultimoLance={ultimoLance}
