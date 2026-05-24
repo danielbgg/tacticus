@@ -38,8 +38,13 @@ export function parsearPgn(pgn: string): Result<PgnParsed, string> {
       return err("PGN inválido: sem headers reconhecíveis");
     }
 
-    // Remover headers e limpar
-    const movtext = pgn.replace(/\[[^\]]*\]/g, "").trim();
+    // Remover apenas linhas de headers (linhas que começam com "[Tag ...]")
+    // Não usar replace global pois removeria anotações como [%tac] dentro de comentários {}
+    const movtext = pgn
+      .split("\n")
+      .filter((line) => !line.trim().match(/^\[[A-Za-z]\w*\s+"[^"]*"\]$/))
+      .join("\n")
+      .trim();
 
     // Extrair lances e comentários
     const lances: LanceParsed[] = [];

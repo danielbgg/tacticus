@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import Database from "better-sqlite3";
+import { Database } from "node-sqlite3-wasm";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { adaptDb } from "../helpers/db-adapter";
