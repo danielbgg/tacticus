@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Database } from "node-sqlite3-wasm";
-import { readFileSync } from "fs";
-import { join } from "path";
-import { adaptDb } from "../helpers/db-adapter";
+import { adaptDb, criarDbMemoria as criarDbBase } from "../helpers/db-adapter";
 import {
   listarExercicios,
   buscarExercicio,
@@ -17,11 +15,7 @@ import { toExercicioId, toPerfilId, toUnidadeId } from "@/shared/types/branded";
 import { inicializarProgresso } from "@/shared/lib/sm2";
 
 function criarDbMemoria() {
-  const db = new Database(":memory:");
-  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
-    db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
-  }
-  return db;
+  return criarDbBase();
 }
 
 function seedDados(db: InstanceType<typeof Database>) {

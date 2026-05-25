@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Database } from "node-sqlite3-wasm";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { toPerfilId } from "@/shared/types/branded";
 import {
   listarPerfis,
@@ -10,14 +8,13 @@ import {
   atualizarUltimoAcesso,
   excluirPerfil,
 } from "@/db/queries/perfis";
-import { adaptDb } from "../helpers/db-adapter";
+import { adaptDb, criarDbMemoria as criarDbBase } from "../helpers/db-adapter";
+import { criarSessao } from "@/db/queries/sessoes";
+import { registrarTentativa } from "@/db/queries/tentativas";
+import { toExercicioId } from "@/shared/types/branded";
 
 function criarDbMemoria() {
-  const db = new Database(":memory:");
-  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
-    db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
-  }
-  return db;
+  return criarDbBase();
 }
 
 describe("queries/perfis — integração SQLite in-memory", () => {
@@ -154,6 +151,52 @@ describe("queries/perfis — integração SQLite in-memory", () => {
       const depois = await buscarPerfil(db, criado.value.id);
       expect(depois.ok).toBe(true);
       if (depois.ok) expect(depois.value).toBeNull();
+    });
+
+    it("exclui sessões e tentativas relacionadas via CASCADE", async () => {
+      // Configura estrutura mínima necessária para criar tentativas
+      raw.exec(`INSERT INTO areas (id, nome, ordem) VALUES ('a1', 'T', 1)`);
+      raw.exec(`INSERT INTO modulos (id, area_id, nome, ordem) VALUES ('m1', 'a1', 'M', 1)`);
+      raw.exec(`INSERT INTO unidades (id, modulo_id, nome, ordem) VALUES ('u1', 'm1', 'U', 1)`);
+      raw.exec(
+        `INSERT INTO partidas (id, brancas, negras, resultado, ano) VALUES ('p1', 'A', 'B', '1-0', 2000)`,
+      );
+      raw.exec(`INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, ordem)
+                VALUES ('e1', 'u1', 'p1', 'startpos', '["e2e4"]', 1)`);
+
+      const criado = await criarPerfil(db, {
+        nome: "Gustavo",
+        nivel: "iniciante",
+        avatar: "♘",
+        acertosParaDominar: 5,
+      });
+      if (!criado.ok) throw new Error("falhou ao criar perfil");
+      const perfilId = criado.value.id;
+
+      const sessao = await criarSessao(db, { perfilId, modo: "treino" });
+      if (!sessao.ok) throw new Error("falhou ao criar sessão");
+
+      await registrarTentativa(db, {
+        sessaoId: sessao.value.id,
+        perfilId,
+        exercicioId: toExercicioId("e1"),
+        acertou: true,
+        tempoRespostaMs: 2000,
+        dicasUsadas: 0,
+      });
+
+      await excluirPerfil(db, perfilId);
+
+      // Cascata: sessões e tentativas devem ter sido removidas
+      const sessoes = raw
+        .prepare("SELECT COUNT(*) as n FROM sessoes WHERE perfil_id = ?")
+        .get([perfilId]) as { n: number };
+      const tentativas = raw
+        .prepare("SELECT COUNT(*) as n FROM tentativas WHERE perfil_id = ?")
+        .get([perfilId]) as { n: number };
+
+      expect(sessoes.n).toBe(0);
+      expect(tentativas.n).toBe(0);
     });
   });
 });

@@ -1,28 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Database } from "node-sqlite3-wasm";
-import { readFileSync } from "fs";
-import { join } from "path";
-import { adaptDb } from "../helpers/db-adapter";
+import { adaptDb, criarDbMemoria as criarDbBase } from "../helpers/db-adapter";
 import { criarSessao, encerrarSessao, listarSessoesPerfil } from "@/db/queries/sessoes";
 import { registrarTentativa } from "@/db/queries/tentativas";
 import { toPerfilId, toExercicioId } from "@/shared/types/branded";
 
 function criarDbMemoria() {
-  const db = new Database(":memory:");
-  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
-    db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
-  }
-  db.exec(`INSERT INTO perfis (id, nome, nivel, avatar, acertos_para_dominar, criado_em, ultimo_acesso)
-           VALUES ('p1', 'Teste', 'iniciante', '♙', 5, datetime('now'), datetime('now'))`);
-  db.exec(`INSERT INTO areas (id, nome, ordem) VALUES ('a1', 'Táticas', 1)`);
-  db.exec(`INSERT INTO modulos (id, area_id, nome, ordem) VALUES ('m1', 'a1', 'Mod', 1)`);
-  db.exec(`INSERT INTO unidades (id, modulo_id, nome, ordem) VALUES ('u1', 'm1', 'Unid', 1)`);
-  db.exec(
-    `INSERT INTO partidas (id, brancas, negras, resultado, ano) VALUES ('part1', 'A', 'B', '1-0', 2000)`,
-  );
-  db.exec(`INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, ordem)
-           VALUES ('e1', 'u1', 'part1', 'startpos', '["e2e4"]', 1)`);
-  return db;
+  return criarDbBase((db) => {
+    db.exec(`INSERT INTO perfis (id, nome, nivel, avatar, acertos_para_dominar, criado_em, ultimo_acesso)
+             VALUES ('p1', 'Teste', 'iniciante', '♙', 5, datetime('now'), datetime('now'))`);
+    db.exec(`INSERT INTO areas (id, nome, ordem) VALUES ('a1', 'Táticas', 1)`);
+    db.exec(`INSERT INTO modulos (id, area_id, nome, ordem) VALUES ('m1', 'a1', 'Mod', 1)`);
+    db.exec(`INSERT INTO unidades (id, modulo_id, nome, ordem) VALUES ('u1', 'm1', 'Unid', 1)`);
+    db.exec(
+      `INSERT INTO partidas (id, brancas, negras, resultado, ano) VALUES ('part1', 'A', 'B', '1-0', 2000)`,
+    );
+    db.exec(`INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, ordem)
+             VALUES ('e1', 'u1', 'part1', 'startpos', '["e2e4"]', 1)`);
+  });
 }
 
 describe("queries/sessoes", () => {

@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Database } from "node-sqlite3-wasm";
-import { readFileSync } from "fs";
-import { join } from "path";
-import { adaptDb } from "../helpers/db-adapter";
+import { adaptDb, criarDbMemoria as criarDbBase } from "../helpers/db-adapter";
 import {
   criarExercicioCustomizado,
   atualizarExercicio,
@@ -12,19 +10,16 @@ import { buscarExercicio } from "@/db/queries/exercicios";
 import { toExercicioId, toUnidadeId } from "@/shared/types/branded";
 
 function criarDbMemoria() {
-  const db = new Database(":memory:");
-  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
-    db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
-  }
-  db.exec(`INSERT INTO areas (id, nome, ordem) VALUES ('a1', 'Táticas', 1)`);
-  db.exec(`INSERT INTO modulos (id, area_id, nome, ordem) VALUES ('m1', 'a1', 'Mod', 1)`);
-  db.exec(`INSERT INTO unidades (id, modulo_id, nome, ordem) VALUES ('u1', 'm1', 'Unid', 1)`);
-  db.exec(
-    `INSERT INTO partidas (id, brancas, negras, resultado, ano) VALUES ('p1', 'A', 'B', '1-0', 2000)`,
-  );
-  db.exec(`INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, ordem)
-           VALUES ('e-padrao', 'u1', 'p1', 'startpos', '["e2e4"]', 1)`);
-  return db;
+  return criarDbBase((db) => {
+    db.exec(`INSERT INTO areas (id, nome, ordem) VALUES ('a1', 'Táticas', 1)`);
+    db.exec(`INSERT INTO modulos (id, area_id, nome, ordem) VALUES ('m1', 'a1', 'Mod', 1)`);
+    db.exec(`INSERT INTO unidades (id, modulo_id, nome, ordem) VALUES ('u1', 'm1', 'Unid', 1)`);
+    db.exec(
+      `INSERT INTO partidas (id, brancas, negras, resultado, ano) VALUES ('p1', 'A', 'B', '1-0', 2000)`,
+    );
+    db.exec(`INSERT INTO exercicios (id, unidade_id, partida_id, fen_inicial, lances_solucao, ordem)
+             VALUES ('e-padrao', 'u1', 'p1', 'startpos', '["e2e4"]', 1)`);
+  });
 }
 
 describe("queries/exercicios-crud — banco customizado", () => {
