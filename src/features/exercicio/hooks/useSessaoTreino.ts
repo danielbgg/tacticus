@@ -20,6 +20,7 @@ import type { UnidadeId, SessaoId } from "@/shared/types/branded";
 export interface DadosIniciar {
   sessaoPausada: SessaoPausada | null;
   filaFresca: Exercicio[];
+  totalExerciciosUnidade: number;
 }
 
 export function useSessaoTreino() {
@@ -54,7 +55,7 @@ export function useSessaoTreino() {
         filaFresca.push(ex);
       }
 
-      return { sessaoPausada, filaFresca };
+      return { sessaoPausada, filaFresca, totalExerciciosUnidade: rExercicios.value.length };
     },
   });
 
@@ -62,7 +63,7 @@ export function useSessaoTreino() {
   const confirmar = useCallback(
     async (unidadeId: UnidadeId, opcao: "retomar" | "fresco") => {
       if (!iniciarMutation.data || !perfilAtivoId) return;
-      const { sessaoPausada, filaFresca } = iniciarMutation.data;
+      const { sessaoPausada, filaFresca, totalExerciciosUnidade } = iniciarMutation.data;
       const db = await getDb();
 
       if (sessaoPausada) {
@@ -70,7 +71,12 @@ export function useSessaoTreino() {
       }
 
       if (opcao === "retomar" && sessaoPausada) {
-        store.iniciarSessao(sessaoPausada.sessaoId, "treino", sessaoPausada.fila);
+        store.iniciarSessao(
+          sessaoPausada.sessaoId,
+          "treino",
+          sessaoPausada.fila,
+          totalExerciciosUnidade,
+        );
       } else {
         const rSessao = await criarSessao(db as never, {
           perfilId: perfilAtivoId,
@@ -78,7 +84,7 @@ export function useSessaoTreino() {
           unidadeId,
         });
         const sessaoId = rSessao.ok ? rSessao.value.id : (crypto.randomUUID() as SessaoId);
-        store.iniciarSessao(sessaoId, "treino", filaFresca);
+        store.iniciarSessao(sessaoId, "treino", filaFresca, totalExerciciosUnidade);
       }
     },
     [iniciarMutation.data, perfilAtivoId, store],

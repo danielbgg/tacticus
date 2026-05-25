@@ -19,9 +19,15 @@ interface EstadoSessao {
   pausado: boolean;
   exerciciosConcluidos: string[];
   totalExerciciosUnidade: number;
+  jaFeitosAnteriores: number;
   tempoTotalMs: number;
 
-  iniciarSessao: (sessaoId: SessaoId, modo: ModoSessao, fila: Exercicio[]) => void;
+  iniciarSessao: (
+    sessaoId: SessaoId,
+    modo: ModoSessao,
+    fila: Exercicio[],
+    totalUnidade?: number,
+  ) => void;
   avancarExercicio: () => void;
   registrarAcerto: (tempoMs: number) => void;
   registrarErro: (tempoMs: number) => void;
@@ -48,9 +54,11 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
   pausado: false,
   exerciciosConcluidos: [],
   totalExerciciosUnidade: 0,
+  jaFeitosAnteriores: 0,
   tempoTotalMs: 0,
 
-  iniciarSessao: (sessaoId, modo, fila) =>
+  iniciarSessao: (sessaoId, modo, fila, totalUnidade) => {
+    const total = totalUnidade ?? fila.length;
     set({
       sessaoId,
       modo,
@@ -65,9 +73,11 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
       iniciadaEm: new Date(),
       pausado: false,
       exerciciosConcluidos: [],
-      totalExerciciosUnidade: fila.length,
+      totalExerciciosUnidade: total,
+      jaFeitosAnteriores: total - fila.length,
       tempoTotalMs: 0,
-    }),
+    });
+  },
 
   avancarExercicio: () => {
     const { fila, indiceAtual } = get();
@@ -117,6 +127,7 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
       pausado: false,
       exerciciosConcluidos: [],
       totalExerciciosUnidade: 0,
+      jaFeitosAnteriores: 0,
       tempoTotalMs: 0,
     }),
 

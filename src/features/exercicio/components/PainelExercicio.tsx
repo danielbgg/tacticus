@@ -107,6 +107,7 @@ export function PainelExercicio({
     retomar,
     exerciciosConcluidos,
     totalExerciciosUnidade,
+    jaFeitosAnteriores,
     tempoTotalMs,
   } = useSessaoStore();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
@@ -144,11 +145,12 @@ export function PainelExercicio({
 
   if (!exercicioAtual) return null;
 
-  const total = fila.length + indiceAtual;
-  const progresso = total > 0 ? (indiceAtual / total) * 100 : 0;
   const vezesResolvido = progressoExercicio?.totalAcertos ?? 0;
   const rating = exercicioAtual.rating;
   const totalUnidade = totalExerciciosUnidade;
+  // posição global: exercícios de sessões anteriores + progresso atual
+  const posicaoGlobal = jaFeitosAnteriores + indiceAtual;
+  const progressoGlobal = totalUnidade > 0 ? (posicaoGlobal / totalUnidade) * 100 : 0;
   const concluidosUnicos = exerciciosConcluidos.length;
 
   return (
@@ -182,11 +184,16 @@ export function PainelExercicio({
           <div>
             <div className="flex flex-wrap gap-1">
               {Array.from({ length: Math.min(totalUnidade, 30) }).map((_, i) => {
-                const exercicioId = fila[i]?.id ?? exerciciosConcluidos[i];
-                const concluido = exercicioId
-                  ? exerciciosConcluidos.includes(exercicioId)
-                  : i < concluidosUnicos;
-                const atual = i === indiceAtual && fase !== "acerto";
+                // exercícios anteriores à sessão atual são sempre verdes
+                const deSessaoAnterior = i < jaFeitosAnteriores;
+                // dentro da sessão atual: exercícios antes do cursor ou em exerciciosConcluidos
+                const iNaSessao = i - jaFeitosAnteriores;
+                const concluido =
+                  deSessaoAnterior ||
+                  (iNaSessao >= 0 &&
+                    (iNaSessao < indiceAtual ||
+                      exerciciosConcluidos.includes(fila[iNaSessao]?.id ?? "")));
+                const atual = i === posicaoGlobal && fase !== "acerto";
                 return (
                   <div
                     key={i}
@@ -211,14 +218,14 @@ export function PainelExercicio({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-[var(--color-conteudo-terciario)]">
-              {t("exercicio", { atual: indiceAtual + 1, total })}
+              {t("exercicio", { atual: posicaoGlobal + 1, total: totalUnidade })}
             </span>
             <span className="flex gap-3">
               <span className="font-medium text-[var(--color-sucesso)]">✓ {acertosNaSessao}</span>
               <span className="font-medium text-[var(--color-erro)]">✗ {errosNaSessao}</span>
             </span>
           </div>
-          <Progress value={progresso} label="Progresso da sessão" />
+          <Progress value={progressoGlobal} label="Progresso da sessão" />
         </div>
 
         {/* Timers + pausa em 1 linha compacta */}
