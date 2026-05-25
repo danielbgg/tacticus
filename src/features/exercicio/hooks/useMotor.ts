@@ -71,15 +71,13 @@ export function useMotor(): UseMotorReturn {
         const melhorLance = msg.melhorLance as string;
         setLinhas((prev) => {
           const principal = prev.find((l) => l.multipv === 1);
-          if (principal) {
-            setMelhorAvaliacao({
-              melhorLance,
-              centipawns: principal.score.tipo === "cp" ? principal.score.valor : null,
-              mate: principal.score.tipo === "mate" ? principal.score.valor : null,
-              profundidade: principal.depth,
-              linha: principal.lances,
-            });
-          }
+          setMelhorAvaliacao({
+            melhorLance,
+            centipawns: principal?.score.tipo === "cp" ? principal.score.valor : null,
+            mate: principal?.score.tipo === "mate" ? principal.score.valor : null,
+            profundidade: principal?.depth ?? 0,
+            linha: principal?.lances ?? [],
+          });
           return prev;
         });
         setStatus("pronto");

@@ -214,7 +214,7 @@ export function TreinoPage() {
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex flex-col xl:flex-row gap-6 items-start">
-        <div className="w-full xl:flex-1 min-w-0">
+        <div className="w-full xl:flex-1 min-w-0 xl:max-w-[calc(100vh-8rem)]">
           <TabuleiroInterativo
             onLanceCorreto={handleLanceCorreto}
             onLanceErrado={handleLanceErrado}

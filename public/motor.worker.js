@@ -6,6 +6,7 @@ importScripts("/stockfish.js");
 
 var engine = null;
 var analiseAtiva = false;
+var analisePendente = null; // { fen, profundidade, multiPV } — aguardando bestmove anterior
 var timeoutId = null;
 var TIMEOUT_MS = 10000;
 
@@ -33,6 +34,21 @@ function parseLances(parts) {
   return pvIdx === -1 ? [] : parts.slice(pvIdx + 1);
 }
 
+// Inicia análise imediatamente (sem checar analiseAtiva — chamador é responsável).
+function executarAnalise(fen, profundidade, multiPV) {
+  analiseAtiva = true;
+  analisePendente = null;
+  enviarParaMotor("setoption name MultiPV value " + multiPV);
+  enviarParaMotor("position fen " + fen);
+  enviarParaMotor("go depth " + profundidade);
+  timeoutId = setTimeout(function () {
+    cancelarTimeout();
+    analiseAtiva = false;
+    enviarParaMotor("stop");
+    self.postMessage({ tipo: "ANALISE_TIMEOUT" });
+  }, TIMEOUT_MS);
+}
+
 function iniciarEngine() {
   engine = STOCKFISH();
 
@@ -57,19 +73,28 @@ function iniciarEngine() {
       var lances = parseLances(parts);
       var nosIdx = parts.indexOf("nodes");
       var nos = nosIdx !== -1 ? parseInt(parts[nosIdx + 1] || "0", 10) : 0;
-      if (lances.length > 0) {
-        self.postMessage({ tipo: "LINHA_ANALISE", depth: depth, multipv: multipv, score: score, lances: lances, nos: nos });
-      }
+      self.postMessage({ tipo: "LINHA_ANALISE", depth: depth, multipv: multipv, score: score, lances: lances, nos: nos });
       return;
     }
 
     if (line.indexOf("bestmove") === 0) {
       cancelarTimeout();
-      analiseAtiva = false;
-      var parts = line.split(" ");
-      var melhorLance = parts[1] || "";
-      self.postMessage({ tipo: "ANALISE_COMPLETA", melhorLance: melhorLance });
+      var parts2 = line.split(" ");
+      var melhorLance = parts2[1] || "";
+
+      if (analisePendente) {
+        // O stop foi para dar lugar a uma nova análise — não notifica ANALISE_COMPLETA
+        var p = analisePendente;
+        executarAnalise(p.fen, p.profundidade, p.multiPV);
+      } else {
+        analiseAtiva = false;
+        self.postMessage({ tipo: "ANALISE_COMPLETA", melhorLance: melhorLance });
+      }
     }
+  };
+
+  engine.onerror = function () {
+    self.postMessage({ tipo: "ERRO" });
   };
 
   enviarParaMotor("uci");
@@ -90,24 +115,26 @@ self.onmessage = function (e) {
 
   if (msg.tipo === "ANALISAR") {
     if (!engine) return;
-    cancelarTimeout();
-    analiseAtiva = true;
+    var fen = msg.fen;
     var profundidade = msg.profundidade || 18;
     var multiPV = msg.multiPV || 3;
-    enviarParaMotor("setoption name MultiPV value " + multiPV);
-    enviarParaMotor("position fen " + msg.fen);
-    enviarParaMotor("go depth " + profundidade);
-    timeoutId = setTimeout(function () {
-      analiseAtiva = false;
+
+    if (analiseAtiva) {
+      // Para a análise atual e enfileira a nova — será iniciada ao receber bestmove
+      cancelarTimeout();
+      analiseAtiva = false; // ignora info lines da análise interrompida
+      analisePendente = { fen: fen, profundidade: profundidade, multiPV: multiPV };
       enviarParaMotor("stop");
-      self.postMessage({ tipo: "ANALISE_TIMEOUT" });
-    }, TIMEOUT_MS);
+    } else {
+      executarAnalise(fen, profundidade, multiPV);
+    }
     return;
   }
 
   if (msg.tipo === "PARAR_ANALISE") {
     cancelarTimeout();
     analiseAtiva = false;
+    analisePendente = null;
     enviarParaMotor("stop");
     return;
   }
@@ -115,6 +142,7 @@ self.onmessage = function (e) {
   if (msg.tipo === "ENCERRAR") {
     cancelarTimeout();
     analiseAtiva = false;
+    analisePendente = null;
     enviarParaMotor("quit");
     engine = null;
   }

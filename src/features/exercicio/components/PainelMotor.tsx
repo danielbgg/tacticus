@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { Chess } from "chess.js";
 import { useMotor } from "@/features/exercicio/hooks/useMotor";
 import { Button } from "@/shared/components/Button/Button";
 
@@ -31,14 +32,40 @@ function corScore(score: { tipo: "cp" | "mate"; valor: number }, orientacao: "w"
   return "text-[var(--color-conteudo-secundario)]";
 }
 
-// Determina quem tem o turno a partir do FEN
 function turnoDoFen(fen: string): "w" | "b" {
   return fen.split(" ")[1] === "b" ? "b" : "w";
+}
+
+function uciParaSan(fen: string, lances: string[]): string[] {
+  try {
+    const chess = new Chess(fen);
+    const resultado: string[] = [];
+    for (const lance of lances) {
+      const from = lance.slice(0, 2);
+      const to = lance.slice(2, 4);
+      const promotion = lance.length === 5 ? lance[4] : undefined;
+      const move = chess.move(promotion ? { from, to, promotion } : { from, to });
+      if (!move) break;
+      resultado.push(move.san);
+    }
+    return resultado;
+  } catch {
+    return lances;
+  }
 }
 
 export function PainelMotor({ fen }: PainelMotorProps) {
   const { status, linhas, melhorAvaliacao, analisar, parar } = useMotor();
   const [aberto, setAberto] = useState(false);
+
+  // Quando o FEN muda (novo exercício) e o painel está aberto, re-analisa automaticamente.
+  // Não verifica status — o worker para a análise anterior antes de começar a nova.
+  useEffect(() => {
+    if (aberto && fen) {
+      analisar(fen, 18);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fen]);
 
   const handleAnalisar = useCallback(() => {
     if (!aberto) setAberto(true);
@@ -101,7 +128,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
                 </span>
               </div>
               <p className="font-mono text-xs text-[var(--color-conteudo-secundario)] truncate">
-                {linha.lances.slice(0, 6).join(" ")}
+                {uciParaSan(fen, linha.lances).slice(0, 6).join(" ")}
               </p>
             </div>
           ))}
@@ -110,10 +137,16 @@ export function PainelMotor({ fen }: PainelMotorProps) {
 
       {aberto && melhorAvaliacao && (
         <p className="mt-2 text-xs text-[var(--color-conteudo-terciario)]">
-          Melhor lance:{" "}
-          <span className="font-mono font-medium text-[var(--color-conteudo-primario)]">
-            {melhorAvaliacao.melhorLance}
-          </span>
+          {melhorAvaliacao.melhorLance && melhorAvaliacao.melhorLance !== "(none)" ? (
+            <>
+              Melhor lance:{" "}
+              <span className="font-mono font-medium text-[var(--color-conteudo-primario)]">
+                {uciParaSan(fen, [melhorAvaliacao.melhorLance])[0] ?? melhorAvaliacao.melhorLance}
+              </span>
+            </>
+          ) : (
+            <span className="font-medium text-[var(--color-sucesso)]">Posição terminal</span>
+          )}
         </p>
       )}
     </div>

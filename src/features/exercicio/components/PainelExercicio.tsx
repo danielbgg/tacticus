@@ -151,7 +151,7 @@ export function PainelExercicio({
   // posição global: exercícios de sessões anteriores + progresso atual
   const posicaoGlobal = jaFeitosAnteriores + indiceAtual;
   const progressoGlobal = totalUnidade > 0 ? (posicaoGlobal / totalUnidade) * 100 : 0;
-  const concluidosUnicos = exerciciosConcluidos.length;
+  const concluidosUnicos = jaFeitosAnteriores + exerciciosConcluidos.length;
 
   return (
     <div className="flex flex-col gap-3">
