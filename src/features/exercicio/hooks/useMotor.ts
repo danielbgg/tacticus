@@ -34,9 +34,9 @@ export function useMotor(): UseMotorReturn {
 
     let worker: Worker;
     try {
-      worker = new Worker(new URL("@/workers/motor.worker.ts", import.meta.url), {
-        type: "classic",
-      });
+      // Worker em public/ — servido sem transformação pelo Vite, garantindo contexto
+      // classic worker onde importScripts está disponível para carregar stockfish.js.
+      worker = new Worker("/motor.worker.js");
     } catch {
       setStatus("erro");
       return null;
