@@ -12,10 +12,17 @@ function pluginCopiarStockfish() {
   return {
     name: "copiar-stockfish",
     buildStart() {
-      const src = resolve(__dirname, "node_modules/stockfish/stockfish.js");
+      const candidatos = [
+        "node_modules/stockfish/src/stockfish.js",
+        "node_modules/stockfish/stockfish.js",
+      ];
       const dst = resolve(__dirname, "public/stockfish.js");
-      if (existsSync(src) && !existsSync(dst)) {
-        copyFileSync(src, dst);
+      for (const rel of candidatos) {
+        const src = resolve(__dirname, rel);
+        if (existsSync(src)) {
+          copyFileSync(src, dst);
+          break;
+        }
       }
     },
   };

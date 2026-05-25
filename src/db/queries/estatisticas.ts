@@ -113,6 +113,7 @@ export async function buscarHistoricoSessoes(
   limite = 50,
 ): Promise<Result<HistoricoSessao[], string>> {
   try {
+    // Conta tentativas diretamente da tabela — não depende de encerrarSessao ter sido chamado
     const rows = await db.select<
       Array<{
         id: string;
@@ -125,12 +126,17 @@ export async function buscarHistoricoSessoes(
         modulo_nome: string | null;
       }>
     >(
-      `SELECT s.id, s.inicio, s.fim, s.total_tentativas, s.total_acertos, s.modo,
-              u.nome as unidade_nome, m.nome as modulo_nome
+      `SELECT s.id, s.inicio, s.fim, s.modo,
+              u.nome as unidade_nome, m.nome as modulo_nome,
+              COUNT(t.id) as total_tentativas,
+              SUM(CASE WHEN t.acertou = 1 THEN 1 ELSE 0 END) as total_acertos
        FROM sessoes s
+       LEFT JOIN tentativas t ON t.sessao_id = s.id
        LEFT JOIN unidades u ON u.id = s.unidade_id
        LEFT JOIN modulos m ON m.id = u.modulo_id
-       WHERE s.perfil_id = ? AND s.total_tentativas > 0
+       WHERE s.perfil_id = ?
+       GROUP BY s.id
+       HAVING COUNT(t.id) > 0
        ORDER BY s.inicio DESC LIMIT ?`,
       [perfilId, limite],
     );

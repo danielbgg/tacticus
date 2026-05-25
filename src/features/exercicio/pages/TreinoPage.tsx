@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -48,8 +48,11 @@ export function TreinoPage() {
   const [fasePagina, setFasePagina] = useState<FasePagina>("carregando");
   const [lancesNotacao, setLancesNotacao] = useState<string[]>([]);
   const [fenAtual, setFenAtual] = useState(store.exercicioAtual?.fenInicial ?? "");
+  // Impede dupla criação de sessão causada pelo React StrictMode (executa efeitos 2× em dev)
+  const confirmadoRef = useRef(false);
 
   useEffect(() => {
+    confirmadoRef.current = false;
     iniciar.mutate(unidadeId as UnidadeId);
     return () => {
       pausar(unidadeId as UnidadeId);
@@ -60,6 +63,8 @@ export function TreinoPage() {
   // Reage ao resultado da mutation
   useEffect(() => {
     if (!iniciar.isSuccess) return;
+    if (confirmadoRef.current) return;
+    confirmadoRef.current = true;
     const { sessaoPausada, filaFresca } = iniciar.data;
     if (sessaoPausada) {
       setFasePagina("dialogo-retomar");
