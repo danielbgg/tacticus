@@ -229,6 +229,43 @@ export function HomePage() {
         )}
       </header>
 
+      {/* Hero CTA — Continuar de onde parou */}
+      {ultimaUnidade && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() =>
+            navigate({
+              to: "/treinar/$unidadeId",
+              params: { unidadeId: ultimaUnidade.unidadeId },
+            })
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ")
+              navigate({
+                to: "/treinar/$unidadeId",
+                params: { unidadeId: ultimaUnidade.unidadeId },
+              });
+          }}
+          className="cursor-pointer rounded-2xl bg-[var(--color-acento)] p-5 flex items-center gap-5 hover:opacity-90 active:opacity-80 transition-opacity"
+        >
+          <span className="text-5xl shrink-0 text-white" aria-hidden="true">
+            ▶
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/70">
+              Continuar de onde parei
+            </p>
+            <p className="truncate text-xl font-bold text-white mt-0.5">
+              {ultimaUnidade.nomeUnidade}
+            </p>
+            <p className="text-xs text-white/60 mt-1">
+              Última sessão: {new Date(ultimaUnidade.timestampUltima).toLocaleDateString("pt-BR")}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Barra de progresso geral */}
       {totalProgresso > 0 && (
         <div>
@@ -249,11 +286,11 @@ export function HomePage() {
           <p className="text-xs text-[var(--color-conteudo-terciario)]">Vistos</p>
         </Card>
         <Card className="text-center py-3">
-          <p className="text-2xl font-bold text-green-500">{totalDominados}</p>
+          <p className="text-2xl font-bold text-[var(--color-sucesso)]">{totalDominados}</p>
           <p className="text-xs text-[var(--color-conteudo-terciario)]">Dominados</p>
         </Card>
         <Card className="text-center py-3">
-          <p className="text-2xl font-bold text-yellow-500">{totalRevisoes}</p>
+          <p className="text-2xl font-bold text-[var(--color-aviso)]">{totalRevisoes}</p>
           <p className="text-xs text-[var(--color-conteudo-terciario)]">Para revisão</p>
         </Card>
         <Card className="text-center py-3">
@@ -263,35 +300,6 @@ export function HomePage() {
           <p className="text-xs text-[var(--color-conteudo-terciario)]">Domínio</p>
         </Card>
       </div>
-
-      {/* Card "Continuar" — última unidade em progresso */}
-      {ultimaUnidade && (
-        <Card
-          interactive
-          onClick={() =>
-            navigate({
-              to: "/treinar/$unidadeId",
-              params: { unidadeId: ultimaUnidade.unidadeId },
-            })
-          }
-          className="flex items-center gap-4 border-[var(--color-acento)]/30"
-        >
-          <span className="text-3xl shrink-0" aria-hidden="true">
-            ▶
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-acento)]">
-              Continuar
-            </p>
-            <p className="truncate font-semibold text-[var(--color-conteudo-primario)]">
-              {ultimaUnidade.nomeUnidade}
-            </p>
-            <p className="text-xs text-[var(--color-conteudo-terciario)]">
-              Última sessão: {new Date(ultimaUnidade.timestampUltima).toLocaleDateString("pt-BR")}
-            </p>
-          </div>
-        </Card>
-      )}
 
       {/* Card "Revisar" — revisões pendentes */}
       {totalRevisoes > 0 && (
@@ -328,7 +336,9 @@ export function HomePage() {
                     <Progress value={pf.taxaAcerto} label={`Taxa de acerto: ${pf.taxaAcerto}%`} />
                   </div>
                 </div>
-                <span className="shrink-0 text-sm font-bold text-red-400">{pf.taxaAcerto}%</span>
+                <span className="shrink-0 text-sm font-bold text-[var(--color-erro)]">
+                  {pf.taxaAcerto}%
+                </span>
               </div>
             ))}
           </div>

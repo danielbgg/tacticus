@@ -148,160 +148,138 @@ export function PainelExercicio({
   const progresso = total > 0 ? (indiceAtual / total) * 100 : 0;
   const vezesResolvido = progressoExercicio?.totalAcertos ?? 0;
   const rating = exercicioAtual.rating;
-
-  // Painel PCT — grade de exercícios da unidade
   const totalUnidade = totalExerciciosUnidade;
   const concluidosUnicos = exerciciosConcluidos.length;
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Cabeçalho PCT: módulo › unidade */}
-      {(moduloNome || unidadeNome) && (
-        <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-3">
-          <div className="flex items-center gap-1 text-xs text-[var(--color-conteudo-terciario)] mb-1 uppercase tracking-wider">
-            Método PCT — Círculos
-          </div>
-          <div className="flex items-center gap-1.5 text-sm">
-            {moduloNome && (
-              <span className="font-semibold text-[var(--color-conteudo-primario)]">
-                {moduloNome}
-              </span>
-            )}
-            {moduloNome && unidadeNome && (
-              <span className="text-[var(--color-conteudo-terciario)]">›</span>
-            )}
-            {unidadeNome && (
-              <span className="text-[var(--color-conteudo-secundario)]">{unidadeNome}</span>
-            )}
-          </div>
-
-          {/* Grade de progresso da unidade */}
-          {totalUnidade > 0 && (
-            <div className="mt-3">
-              <div className="flex flex-wrap gap-1">
-                {Array.from({ length: Math.min(totalUnidade, 30) }).map((_, i) => {
-                  const exercicioId = fila[i]?.id ?? exerciciosConcluidos[i];
-                  const concluido = exercicioId
-                    ? exerciciosConcluidos.includes(exercicioId)
-                    : i < concluidosUnicos;
-                  const atual = i === indiceAtual && fase !== "acerto";
-                  return (
-                    <div
-                      key={i}
-                      className={`h-4 w-4 rounded-sm transition-colors ${
-                        concluido
-                          ? "bg-green-500"
-                          : atual
-                            ? "bg-[var(--color-acento)] animate-pulse"
-                            : "bg-[var(--color-superficie-secundaria)] border border-[var(--color-borda)]"
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-              <p className="mt-1.5 text-xs text-[var(--color-conteudo-terciario)]">
-                {concluidosUnicos}/{totalUnidade} concluídos nesta sessão
-              </p>
+      {/* ── ZONA DE CONTEXTO ── compacta, estática */}
+      <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-3 space-y-3">
+        {/* Breadcrumb: módulo › unidade */}
+        {(moduloNome || unidadeNome) && (
+          <div>
+            <p className="text-xs uppercase tracking-wider text-[var(--color-conteudo-terciario)] mb-0.5">
+              Método PCT — Círculos
+            </p>
+            <div className="flex items-center gap-1.5 text-sm">
+              {moduloNome && (
+                <span className="font-semibold text-[var(--color-conteudo-primario)]">
+                  {moduloNome}
+                </span>
+              )}
+              {moduloNome && unidadeNome && (
+                <span className="text-[var(--color-conteudo-terciario)]">›</span>
+              )}
+              {unidadeNome && (
+                <span className="text-[var(--color-conteudo-secundario)]">{unidadeNome}</span>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Relógios + botão de pausa */}
-      <div className="flex items-center justify-between rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-3 py-2">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-center">
-            <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
-              Sessão
+        {/* Grade de progresso da unidade */}
+        {totalUnidade > 0 && (
+          <div>
+            <div className="flex flex-wrap gap-1">
+              {Array.from({ length: Math.min(totalUnidade, 30) }).map((_, i) => {
+                const exercicioId = fila[i]?.id ?? exerciciosConcluidos[i];
+                const concluido = exercicioId
+                  ? exerciciosConcluidos.includes(exercicioId)
+                  : i < concluidosUnicos;
+                const atual = i === indiceAtual && fase !== "acerto";
+                return (
+                  <div
+                    key={i}
+                    className={`h-3.5 w-3.5 rounded-sm transition-colors ${
+                      concluido
+                        ? "bg-[var(--color-sucesso)]"
+                        : atual
+                          ? "bg-[var(--color-acento)] animate-pulse"
+                          : "bg-[var(--color-superficie-secundaria)] border border-[var(--color-borda)]"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-[var(--color-conteudo-terciario)]">
+              {concluidosUnicos}/{totalUnidade} concluídos
+            </p>
+          </div>
+        )}
+
+        {/* Barra de progresso + ✓/✗ numa linha */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[var(--color-conteudo-terciario)]">
+              {t("exercicio", { atual: indiceAtual + 1, total })}
             </span>
-            <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums font-mono">
-              {tempoSessao}
+            <span className="flex gap-3">
+              <span className="font-medium text-[var(--color-sucesso)]">✓ {acertosNaSessao}</span>
+              <span className="font-medium text-[var(--color-erro)]">✗ {errosNaSessao}</span>
             </span>
           </div>
-          <div className="w-px h-8 bg-[var(--color-borda)]" />
-          <div className="flex flex-col items-center">
-            <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
-              Exercício
-            </span>
-            <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums font-mono">
-              {tempoExercicio}
-            </span>
-          </div>
-          <div className="w-px h-8 bg-[var(--color-borda)]" />
-          <div className="flex flex-col items-center">
-            <span className="text-[var(--color-conteudo-terciario)] uppercase tracking-wider text-[10px]">
-              Média
-            </span>
-            <span className="text-lg font-bold text-[var(--color-conteudo-primario)] tabular-nums font-mono">
+          <Progress value={progresso} label="Progresso da sessão" />
+        </div>
+
+        {/* Timers + pausa em 1 linha compacta */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-[var(--color-conteudo-secundario)] font-mono tabular-nums">
+            <span title="Tempo de sessão">{tempoSessao}</span>
+            <span className="text-[var(--color-borda)] select-none">|</span>
+            <span title="Tempo no exercício">{tempoExercicio}</span>
+            <span className="text-[var(--color-borda)] select-none">|</span>
+            <span className="text-[var(--color-conteudo-terciario)]" title="Tempo médio por acerto">
               {formatarTempoMedio(tempoTotalMs, acertosNaSessao)}
             </span>
           </div>
+          <button
+            onClick={pausado ? retomar : pausar}
+            className={`flex items-center justify-center h-7 w-7 rounded-md border text-xs transition-colors ${
+              pausado
+                ? "border-[var(--color-acento)] bg-[var(--color-acento)]/10 text-[var(--color-acento)] hover:bg-[var(--color-acento)]/20"
+                : "border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:border-[var(--color-acento)] hover:text-[var(--color-acento)]"
+            }`}
+            title={pausado ? "Retomar" : "Pausar"}
+            aria-label={pausado ? "Retomar sessão" : "Pausar sessão"}
+          >
+            {pausado ? "▶" : "⏸"}
+          </button>
         </div>
-
-        <button
-          onClick={pausado ? retomar : pausar}
-          className={`flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${
-            pausado
-              ? "border-[var(--color-acento)] bg-[var(--color-acento)]/10 text-[var(--color-acento)] hover:bg-[var(--color-acento)]/20"
-              : "border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:border-[var(--color-acento)] hover:text-[var(--color-acento)]"
-          }`}
-          title={pausado ? "Retomar" : "Pausar"}
-          aria-label={pausado ? "Retomar sessão" : "Pausar sessão"}
-        >
-          {pausado ? "▶" : "⏸"}
-        </button>
       </div>
 
-      {/* Progresso da sessão */}
-      <div className="flex items-center justify-between text-sm text-[var(--color-conteudo-secundario)]">
-        <span>{t("exercicio", { atual: indiceAtual + 1, total })}</span>
-        <span className="flex gap-3">
-          <span className="text-green-500">✓ {acertosNaSessao}</span>
-          <span className="text-red-500">✗ {errosNaSessao}</span>
-        </span>
-      </div>
-
-      <Progress value={progresso} label="Progresso da sessão" />
-
-      {/* Rating */}
-      {rating != null && (
-        <div className="flex items-center gap-1.5 px-1 text-xs">
-          <span className="text-[var(--color-conteudo-terciario)]">Dificuldade:</span>
-          <span className="rounded-full bg-[var(--color-superficie-secundaria)] px-2 py-0.5 font-semibold text-[var(--color-conteudo-secundario)]">
-            ★ {rating}
-          </span>
-        </div>
-      )}
-
+      {/* ── ZONA DE AÇÃO ── proeminente, muda conforme a fase */}
       <AnimatePresence mode="wait">
         {fase === "acerto" && (
           <motion.div
             key="acerto"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            <Card className="border-green-500/30 bg-green-500/5 text-center">
-              <p className="text-xl font-semibold text-green-600">
+            <Card className="border-[var(--color-sucesso)]/30 bg-[var(--color-sucesso)]/5">
+              <p className="text-xl font-semibold text-[var(--color-sucesso)]">
                 {mensagemAleatoria(MENSAGENS_ACERTO)}
               </p>
+
               {exercicioAtual.temas && exercicioAtual.temas.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1 justify-center">
+                <div className="mt-3 flex flex-wrap gap-1">
                   {exercicioAtual.temas.map((tema) => (
                     <span
                       key={tema}
-                      className="rounded-full bg-green-500/10 border border-green-500/20 px-2 py-0.5 text-xs text-green-700 dark:text-green-400"
+                      className="rounded-full bg-[var(--color-sucesso)]/10 border border-[var(--color-sucesso)]/20 px-2 py-0.5 text-xs text-[var(--color-sucesso)]"
                     >
                       {traduzirTema(tema)}
                     </span>
                   ))}
                 </div>
               )}
-              <div className="mt-2 text-xs text-[var(--color-conteudo-terciario)]">
-                #{exercicioAtual.id}
-                {vezesResolvido > 0 && ` · Resolvido ${vezesResolvido}×`}
+
+              <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
+                <span className="font-mono">#{exercicioAtual.id}</span>
+                {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
               </div>
-              <Button onClick={onProximo} variant="primary" className="mt-3">
+
+              <Button onClick={onProximo} variant="primary" className="mt-4 w-full">
                 {t("proximo")}
               </Button>
             </Card>
@@ -311,19 +289,19 @@ export function PainelExercicio({
         {fase === "erro" && (
           <motion.div
             key="erro"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            <Card className="border-red-500/30 bg-red-500/5 text-center">
-              <p className="text-xl font-semibold text-red-600">
+            <Card className="border-[var(--color-erro)]/30 bg-[var(--color-erro)]/5">
+              <p className="text-xl font-semibold text-[var(--color-erro)]">
                 {mensagemAleatoria(MENSAGENS_ERRO)}
               </p>
-              <div className="mt-3 flex gap-2 justify-center">
-                <Button onClick={onTentarNovamente} variant="secondary">
+              <div className="mt-4 flex gap-2">
+                <Button onClick={onTentarNovamente} variant="secondary" className="flex-1">
                   {t("tentar")}
                 </Button>
-                <Button onClick={onProximo} variant="ghost">
+                <Button onClick={onProximo} variant="ghost" className="flex-1">
                   {t("proximo")}
                 </Button>
               </div>
@@ -334,36 +312,47 @@ export function PainelExercicio({
         {(fase === "tentando" || fase === "dica") && (
           <motion.div key="tentando" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Card>
-              <p className="mb-3 text-sm font-medium text-[var(--color-conteudo-primario)]">
+              <p className="text-sm font-semibold text-[var(--color-conteudo-primario)]">
                 {t("encontreMelhorLance")}
               </p>
+
               {exercicioAtual.partida && (
-                <div className="mb-3 rounded-md bg-[var(--color-superficie-secundaria)] p-3 text-xs text-[var(--color-conteudo-secundario)]">
+                <div className="mt-2 rounded-md bg-[var(--color-superficie-secundaria)] p-3 text-xs text-[var(--color-conteudo-secundario)]">
                   <p className="font-medium">
                     {exercicioAtual.partida.brancas} vs {exercicioAtual.partida.negras}
                   </p>
                   {exercicioAtual.partida.evento && (
-                    <p>
+                    <p className="mt-0.5">
                       {exercicioAtual.partida.evento}
                       {exercicioAtual.partida.ano ? `, ${exercicioAtual.partida.ano}` : ""}
                     </p>
                   )}
                 </div>
               )}
-              <div className="mb-3 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
+
+              <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
                 <span className="font-mono">#{exercicioAtual.id}</span>
-                {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
+                <span className="flex items-center gap-2">
+                  {rating != null && (
+                    <span className="rounded-full bg-[var(--color-superficie-secundaria)] px-2 py-0.5 font-semibold text-[var(--color-conteudo-secundario)]">
+                      ★ {rating}
+                    </span>
+                  )}
+                  {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
+                </span>
               </div>
-              <div className="flex gap-2">
+
+              <div className="mt-4 flex gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={onUsarDica}
                   disabled={dicasUsadas >= 3}
+                  className="flex-1"
                 >
                   {t("dica")} {dicasUsadas > 0 ? `(${dicasUsadas}/3)` : ""}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onDesistir}>
+                <Button variant="ghost" size="sm" onClick={onDesistir} className="flex-1">
                   {t("desistir")}
                 </Button>
               </div>

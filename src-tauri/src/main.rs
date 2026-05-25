@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    personal_chess_trainer_lib::run()
+    tacticus_lib::run()
 }

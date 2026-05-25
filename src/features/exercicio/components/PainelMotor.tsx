@@ -21,11 +21,13 @@ function formatarScore(
 
 function corScore(score: { tipo: "cp" | "mate"; valor: number }, orientacao: "w" | "b"): string {
   if (score.tipo === "mate") {
-    return score.valor * (orientacao === "b" ? -1 : 1) > 0 ? "text-green-500" : "text-red-400";
+    return score.valor * (orientacao === "b" ? -1 : 1) > 0
+      ? "text-[var(--color-sucesso)]"
+      : "text-[var(--color-erro)]";
   }
   const cp = (score.valor * (orientacao === "b" ? -1 : 1)) / 100;
-  if (cp > 0.5) return "text-green-500";
-  if (cp < -0.5) return "text-red-400";
+  if (cp > 0.5) return "text-[var(--color-sucesso)]";
+  if (cp < -0.5) return "text-[var(--color-erro)]";
   return "text-[var(--color-conteudo-secundario)]";
 }
 
@@ -53,11 +55,11 @@ export function PainelMotor({ fen }: PainelMotorProps) {
   return (
     <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-3">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-conteudo-terciario)]">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-conteudo-terciario)]">
           Motor
         </p>
         {status === "erro" && (
-          <span className="text-[10px] text-red-400">stockfish.js não encontrado</span>
+          <span className="text-xs text-red-400">stockfish.js não encontrado</span>
         )}
         {principal && status !== "analisando" && (
           <span className={`text-sm font-bold font-mono ${corScore(principal.score, orientacao)}`}>
@@ -65,7 +67,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
           </span>
         )}
         {status === "analisando" && (
-          <span className="text-[10px] text-[var(--color-acento)] animate-pulse">
+          <span className="text-xs text-[var(--color-acento)] animate-pulse">
             prof. {principal?.depth ?? 0}
           </span>
         )}
@@ -94,7 +96,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
                 >
                   {formatarScore(linha.score, orientacao)}
                 </span>
-                <span className="text-[10px] text-[var(--color-conteudo-terciario)]">
+                <span className="text-xs text-[var(--color-conteudo-terciario)]">
                   prof. {linha.depth}
                 </span>
               </div>
@@ -107,7 +109,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
       )}
 
       {aberto && melhorAvaliacao && (
-        <p className="mt-2 text-[10px] text-[var(--color-conteudo-terciario)]">
+        <p className="mt-2 text-xs text-[var(--color-conteudo-terciario)]">
           Melhor lance:{" "}
           <span className="font-mono font-medium text-[var(--color-conteudo-primario)]">
             {melhorAvaliacao.melhorLance}

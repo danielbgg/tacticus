@@ -213,8 +213,8 @@ export function TreinoPage() {
   // fasePagina === "treinando"
   return (
     <div className="flex flex-col gap-4 p-6">
-      <div className="flex gap-6 items-start">
-        <div className="flex-1 min-w-0">
+      <div className="flex flex-col xl:flex-row gap-6 items-start">
+        <div className="w-full xl:flex-1 min-w-0">
           <TabuleiroInterativo
             onLanceCorreto={handleLanceCorreto}
             onLanceErrado={handleLanceErrado}
@@ -230,7 +230,7 @@ export function TreinoPage() {
               : {})}
           />
         </div>
-        <div className="w-72 shrink-0 flex flex-col gap-3">
+        <div className="w-full xl:w-72 xl:shrink-0 flex flex-col gap-3">
           <PainelExercicio
             onUsarDica={handleUsarDica}
             onDesistir={handleDesistir}

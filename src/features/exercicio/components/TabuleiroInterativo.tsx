@@ -58,6 +58,19 @@ export function TabuleiroInterativo({
 }: TabuleiroInterativoProps) {
   const { exercicioAtual, fase, pausado } = useSessaoStore();
   const [fenAtual, setFenAtualRaw] = useState(exercicioAtual?.fenInicial ?? "");
+  const [flashErro, setFlashErro] = useState(false);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (fase === "erro") {
+      setFlashErro(true);
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+      flashTimeoutRef.current = setTimeout(() => setFlashErro(false), 1200);
+    }
+    return () => {
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
+  }, [fase]);
 
   const setFenAtual = useCallback(
     (fen: string) => {
@@ -344,7 +357,15 @@ export function TabuleiroInterativo({
 
   return (
     <div className="flex flex-col items-center w-full gap-3">
-      <div className="relative w-full">
+      <div
+        className={`relative w-full rounded-lg transition-shadow duration-300 ${
+          fase === "acerto"
+            ? "ring-4 ring-[var(--color-sucesso)]"
+            : flashErro
+              ? "ring-4 ring-[var(--color-erro)]"
+              : ""
+        }`}
+      >
         <Tabuleiro
           fen={fenEfetivo}
           orientacao={orientacao}
