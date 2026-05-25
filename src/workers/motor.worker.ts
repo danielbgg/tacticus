@@ -1,16 +1,24 @@
 /// <reference lib="webworker" />
 
-// Worker que envolve o motor Stockfish (UCI).
-// O motor é carregado como sub-worker a partir de /stockfish.js (public/).
-// Protocolo de mensagens: ver contracts/worker-api.md
+// Carrega Stockfish via importScripts (evita sub-worker, não suportado
+// pelo WKWebView do Tauri em macOS). O motor roda na mesma thread do worker.
+declare function importScripts(...urls: string[]): void;
 
-let sfWorker: Worker | null = null;
+interface SFEngine {
+  postMessage(cmd: string): void;
+  onmessage: ((line: string) => void) | null;
+}
+
+// Declaração do global exposto por importScripts("/stockfish.js")
+declare const STOCKFISH: () => SFEngine;
+
+let engine: SFEngine | null = null;
 let analiseAtiva = false;
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 const TIMEOUT_MS = 10_000;
 
 function enviarParaMotor(cmd: string) {
-  sfWorker?.postMessage(cmd);
+  engine?.postMessage(cmd);
 }
 
 function cancelarTimeout() {
@@ -33,66 +41,66 @@ function parseLances(parts: string[]): string[] {
   return pvIdx === -1 ? [] : parts.slice(pvIdx + 1);
 }
 
+function iniciarEngine() {
+  // importScripts adiciona STOCKFISH ao escopo global do worker
+  importScripts("/stockfish.js");
+  // Após importScripts, STOCKFISH está disponível (declarado no topo do arquivo)
+  engine = STOCKFISH();
+
+  engine.onmessage = (line: string) => {
+    if (line === "uciok") {
+      enviarParaMotor("isready");
+      return;
+    }
+
+    if (line === "readyok") {
+      self.postMessage({ tipo: "PRONTO" });
+      return;
+    }
+
+    if (analiseAtiva && line.startsWith("info") && line.includes("depth")) {
+      const parts = line.split(" ");
+      const depthIdx = parts.indexOf("depth");
+      const depth = depthIdx !== -1 ? parseInt(parts[depthIdx + 1] ?? "0", 10) : 0;
+      const multipvIdx = parts.indexOf("multipv");
+      const multipv = multipvIdx !== -1 ? parseInt(parts[multipvIdx + 1] ?? "1", 10) : 1;
+      const score = parseScore(parts);
+      const lances = parseLances(parts);
+      const nosIdx = parts.indexOf("nodes");
+      const nos = nosIdx !== -1 ? parseInt(parts[nosIdx + 1] ?? "0", 10) : 0;
+      if (lances.length > 0) {
+        self.postMessage({ tipo: "LINHA_ANALISE", depth, multipv, score, lances, nos });
+      }
+      return;
+    }
+
+    if (line.startsWith("bestmove")) {
+      cancelarTimeout();
+      analiseAtiva = false;
+      const parts = line.split(" ");
+      const melhorLance = parts[1] ?? "";
+      self.postMessage({ tipo: "ANALISE_COMPLETA", melhorLance });
+    }
+  };
+
+  enviarParaMotor("uci");
+}
+
 self.onmessage = (e: MessageEvent) => {
   const msg = e.data as { tipo: string; fen?: string; profundidade?: number; multiPV?: number };
 
   if (msg.tipo === "INICIALIZAR") {
-    if (sfWorker) return; // já inicializado
+    if (engine) return;
     try {
-      sfWorker = new Worker("/stockfish.js");
+      iniciarEngine();
     } catch {
       self.postMessage({ tipo: "ERRO", mensagem: "Não foi possível carregar o motor Stockfish." });
-      return;
     }
-
-    sfWorker.onmessage = (evt: MessageEvent) => {
-      const line = evt.data as string;
-
-      if (line === "uciok") {
-        enviarParaMotor("isready");
-        return;
-      }
-
-      if (line === "readyok") {
-        self.postMessage({ tipo: "PRONTO" });
-        return;
-      }
-
-      if (analiseAtiva && line.startsWith("info") && line.includes("depth")) {
-        const parts = line.split(" ");
-        const depthIdx = parts.indexOf("depth");
-        const depth = depthIdx !== -1 ? parseInt(parts[depthIdx + 1] ?? "0", 10) : 0;
-        const multipvIdx = parts.indexOf("multipv");
-        const multipv = multipvIdx !== -1 ? parseInt(parts[multipvIdx + 1] ?? "1", 10) : 1;
-        const score = parseScore(parts);
-        const lances = parseLances(parts);
-        const nosIdx = parts.indexOf("nodes");
-        const nos = nosIdx !== -1 ? parseInt(parts[nosIdx + 1] ?? "0", 10) : 0;
-        if (lances.length > 0) {
-          self.postMessage({ tipo: "LINHA_ANALISE", depth, multipv, score, lances, nos });
-        }
-        return;
-      }
-
-      if (line.startsWith("bestmove")) {
-        cancelarTimeout();
-        analiseAtiva = false;
-        const parts = line.split(" ");
-        const melhorLance = parts[1] ?? "";
-        self.postMessage({ tipo: "ANALISE_COMPLETA", melhorLance });
-      }
-    };
-
-    sfWorker.onerror = (err: ErrorEvent) => {
-      self.postMessage({ tipo: "ERRO", mensagem: err.message });
-    };
-
-    enviarParaMotor("uci");
     return;
   }
 
   if (msg.tipo === "ANALISAR") {
-    if (!sfWorker) return;
+    if (!engine) return;
     cancelarTimeout();
     analiseAtiva = true;
     const profundidade = msg.profundidade ?? 18;
@@ -100,7 +108,6 @@ self.onmessage = (e: MessageEvent) => {
     enviarParaMotor(`setoption name MultiPV value ${multiPV}`);
     enviarParaMotor(`position fen ${msg.fen}`);
     enviarParaMotor(`go depth ${profundidade}`);
-
     timeoutId = setTimeout(() => {
       analiseAtiva = false;
       enviarParaMotor("stop");
@@ -120,7 +127,6 @@ self.onmessage = (e: MessageEvent) => {
     cancelarTimeout();
     analiseAtiva = false;
     enviarParaMotor("quit");
-    sfWorker?.terminate();
-    sfWorker = null;
+    engine = null;
   }
 };

@@ -35,7 +35,7 @@ export function useMotor(): UseMotorReturn {
     let worker: Worker;
     try {
       worker = new Worker(new URL("@/workers/motor.worker.ts", import.meta.url), {
-        type: "module",
+        type: "classic",
       });
     } catch {
       setStatus("erro");

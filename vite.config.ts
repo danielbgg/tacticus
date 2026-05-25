@@ -7,22 +7,17 @@ import { copyFileSync, existsSync } from "fs";
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
-// Copia stockfish.js para public/ se o pacote estiver instalado
+// Copia stockfish.js + stockfish.wasm para public/ a cada build/dev start.
+// O worker usa importScripts("/stockfish.js") que exige os dois arquivos em public/.
 function pluginCopiarStockfish() {
   return {
     name: "copiar-stockfish",
     buildStart() {
-      const candidatos = [
-        "node_modules/stockfish/src/stockfish.js",
-        "node_modules/stockfish/stockfish.js",
-      ];
-      const dst = resolve(__dirname, "public/stockfish.js");
-      for (const rel of candidatos) {
-        const src = resolve(__dirname, rel);
-        if (existsSync(src)) {
-          copyFileSync(src, dst);
-          break;
-        }
+      const src = resolve(__dirname, "node_modules/stockfish/src");
+      const dst = resolve(__dirname, "public");
+      for (const arq of ["stockfish.js", "stockfish.wasm"]) {
+        const origem = resolve(src, arq);
+        if (existsSync(origem)) copyFileSync(origem, resolve(dst, arq));
       }
     },
   };
