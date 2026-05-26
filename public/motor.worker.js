@@ -7,6 +7,7 @@ importScripts("/stockfish.js");
 var engine = null;
 var analiseAtiva = false;
 var analisePendente = null; // { fen, profundidade, multiPV } — aguardando bestmove anterior
+var currentFen = "";         // FEN que está sendo (ou foi) analisado — incluído em cada mensagem
 var timeoutId = null;
 var TIMEOUT_MS = 10000;
 
@@ -34,8 +35,9 @@ function parseLances(parts) {
   return pvIdx === -1 ? [] : parts.slice(pvIdx + 1);
 }
 
-// Inicia análise imediatamente (sem checar analiseAtiva — chamador é responsável).
+// Inicia análise imediatamente (chamador garante que não há análise ativa).
 function executarAnalise(fen, profundidade, multiPV) {
+  currentFen = fen;
   analiseAtiva = true;
   analisePendente = null;
   enviarParaMotor("setoption name MultiPV value " + multiPV);
@@ -45,7 +47,7 @@ function executarAnalise(fen, profundidade, multiPV) {
     cancelarTimeout();
     analiseAtiva = false;
     enviarParaMotor("stop");
-    self.postMessage({ tipo: "ANALISE_TIMEOUT" });
+    self.postMessage({ tipo: "ANALISE_TIMEOUT", fen: currentFen });
   }, TIMEOUT_MS);
 }
 
@@ -73,7 +75,8 @@ function iniciarEngine() {
       var lances = parseLances(parts);
       var nosIdx = parts.indexOf("nodes");
       var nos = nosIdx !== -1 ? parseInt(parts[nosIdx + 1] || "0", 10) : 0;
-      self.postMessage({ tipo: "LINHA_ANALISE", depth: depth, multipv: multipv, score: score, lances: lances, nos: nos });
+      // Inclui o FEN analisado para que o cliente possa filtrar mensagens obsoletas
+      self.postMessage({ tipo: "LINHA_ANALISE", fen: currentFen, depth: depth, multipv: multipv, score: score, lances: lances, nos: nos });
       return;
     }
 
@@ -81,14 +84,15 @@ function iniciarEngine() {
       cancelarTimeout();
       var parts2 = line.split(" ");
       var melhorLance = parts2[1] || "";
+      var fenFinalizado = currentFen;
 
       if (analisePendente) {
-        // O stop foi para dar lugar a uma nova análise — não notifica ANALISE_COMPLETA
+        // O stop foi solicitado para dar lugar a nova análise — não notifica ANALISE_COMPLETA
         var p = analisePendente;
         executarAnalise(p.fen, p.profundidade, p.multiPV);
       } else {
         analiseAtiva = false;
-        self.postMessage({ tipo: "ANALISE_COMPLETA", melhorLance: melhorLance });
+        self.postMessage({ tipo: "ANALISE_COMPLETA", fen: fenFinalizado, melhorLance: melhorLance });
       }
     }
   };
@@ -120,7 +124,7 @@ self.onmessage = function (e) {
     var multiPV = msg.multiPV || 3;
 
     if (analiseAtiva) {
-      // Para a análise atual e enfileira a nova — será iniciada ao receber bestmove
+      // Para a análise atual e enfileira a nova — iniciada ao receber bestmove
       cancelarTimeout();
       analiseAtiva = false; // ignora info lines da análise interrompida
       analisePendente = { fen: fen, profundidade: profundidade, multiPV: multiPV };

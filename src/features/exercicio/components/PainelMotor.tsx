@@ -36,7 +36,11 @@ function turnoDoFen(fen: string): "w" | "b" {
   return fen.split(" ")[1] === "b" ? "b" : "w";
 }
 
+// Converte lances UCI em SAN usando o FEN de onde a análise foi iniciada.
+// Usa fenLinhas (não o prop fen) para evitar erros quando o board avança
+// mas linhas antigas ainda estão no estado.
 function uciParaSan(fen: string, lances: string[]): string[] {
+  if (!fen) return lances;
   try {
     const chess = new Chess(fen);
     const resultado: string[] = [];
@@ -55,11 +59,11 @@ function uciParaSan(fen: string, lances: string[]): string[] {
 }
 
 export function PainelMotor({ fen }: PainelMotorProps) {
-  const { status, linhas, melhorAvaliacao, analisar, parar } = useMotor();
+  const { status, linhas, melhorAvaliacao, fenLinhas, analisar, parar } = useMotor();
   const [aberto, setAberto] = useState(false);
 
   // Quando o FEN muda (novo exercício) e o painel está aberto, re-analisa automaticamente.
-  // Não verifica status — o worker para a análise anterior antes de começar a nova.
+  // O worker para a análise anterior antes de iniciar a nova.
   useEffect(() => {
     if (aberto && fen) {
       analisar(fen, 18);
@@ -76,7 +80,11 @@ export function PainelMotor({ fen }: PainelMotorProps) {
     }
   }, [aberto, status, fen, analisar, parar]);
 
-  const orientacao = turnoDoFen(fen);
+  // fenLinhas é o FEN para o qual 'linhas' foi gerado — usar aqui evita que
+  // uciParaSan receba lances de posição A com o FEN atual B (race condition
+  // quando o board avança antes de 'linhas' ser limpo).
+  const fenParaConversao = fenLinhas || fen;
+  const orientacao = turnoDoFen(fenParaConversao);
   const principal = linhas.find((l) => l.multipv === 1);
 
   return (
@@ -128,7 +136,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
                 </span>
               </div>
               <p className="font-mono text-xs text-[var(--color-conteudo-secundario)] truncate">
-                {uciParaSan(fen, linha.lances).slice(0, 6).join(" ")}
+                {uciParaSan(fenParaConversao, linha.lances).slice(0, 6).join(" ")}
               </p>
             </div>
           ))}
@@ -141,7 +149,8 @@ export function PainelMotor({ fen }: PainelMotorProps) {
             <>
               Melhor lance:{" "}
               <span className="font-mono font-medium text-[var(--color-conteudo-primario)]">
-                {uciParaSan(fen, [melhorAvaliacao.melhorLance])[0] ?? melhorAvaliacao.melhorLance}
+                {uciParaSan(fenParaConversao, [melhorAvaliacao.melhorLance])[0] ??
+                  melhorAvaliacao.melhorLance}
               </span>
             </>
           ) : (

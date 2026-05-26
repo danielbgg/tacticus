@@ -14,6 +14,7 @@ interface UseMotorReturn {
   status: StatusMotor;
   linhas: LinhaAnalise[];
   melhorAvaliacao: AvaliacaoMotor | null;
+  fenLinhas: string; // FEN para o qual 'linhas' foi gerado — usar em uciParaSan
   analisar: (fen: string, profundidade?: number) => void;
   parar: () => void;
 }
@@ -23,8 +24,12 @@ export function useMotor(): UseMotorReturn {
   const [status, setStatus] = useState<StatusMotor>("inativo");
   const [linhas, setLinhas] = useState<LinhaAnalise[]>([]);
   const [melhorAvaliacao, setMelhorAvaliacao] = useState<AvaliacaoMotor | null>(null);
+  const [fenLinhas, setFenLinhas] = useState<string>("");
 
-  // Inicializa o worker sob demanda (na primeira chamada de analisar)
+  // FEN que foi enviado mais recentemente ao worker — filtra mensagens obsoletas.
+  // Usa ref (não state) para leitura síncrona dentro dos handlers de mensagem.
+  const ultimoFenRef = useRef<string>("");
+
   const garantirWorker = useCallback((): Worker | null => {
     if (workerRef.current) return workerRef.current;
 
@@ -34,8 +39,6 @@ export function useMotor(): UseMotorReturn {
 
     let worker: Worker;
     try {
-      // Worker em public/ — servido sem transformação pelo Vite, garantindo contexto
-      // classic worker onde importScripts está disponível para carregar stockfish.js.
       worker = new Worker("/motor.worker.js");
     } catch {
       setStatus("erro");
@@ -43,7 +46,7 @@ export function useMotor(): UseMotorReturn {
     }
 
     worker.onmessage = (e: MessageEvent) => {
-      const msg = e.data as { tipo: string; [k: string]: unknown };
+      const msg = e.data as { tipo: string; fen?: string; [k: string]: unknown };
 
       if (msg.tipo === "PRONTO") {
         setStatus("pronto");
@@ -51,7 +54,11 @@ export function useMotor(): UseMotorReturn {
       }
 
       if (msg.tipo === "LINHA_ANALISE") {
-        const linha = msg as unknown as LinhaAnalise & { tipo: string };
+        // Descarta mensagens de análises anteriores pelo FEN
+        if (msg.fen !== ultimoFenRef.current) return;
+
+        const linha = msg as unknown as LinhaAnalise & { tipo: string; fen: string };
+        setFenLinhas(linha.fen);
         setLinhas((prev) => {
           const sem = prev.filter((l) => l.multipv !== linha.multipv);
           return [
@@ -68,6 +75,8 @@ export function useMotor(): UseMotorReturn {
       }
 
       if (msg.tipo === "ANALISE_COMPLETA") {
+        if (msg.fen !== ultimoFenRef.current) return;
+
         const melhorLance = msg.melhorLance as string;
         setLinhas((prev) => {
           const principal = prev.find((l) => l.multipv === 1);
@@ -105,15 +114,18 @@ export function useMotor(): UseMotorReturn {
       const worker = garantirWorker();
       if (!worker) return;
 
+      // Atualiza ref ANTES de limpar estado — garante que qualquer mensagem
+      // com fen diferente chegando logo depois seja filtrada corretamente.
+      ultimoFenRef.current = fen;
       setLinhas([]);
       setMelhorAvaliacao(null);
+      setFenLinhas("");
 
       const enviar = () => {
         setStatus("analisando");
         worker.postMessage({ tipo: "ANALISAR", fen, profundidade, multiPV: 3 });
       };
 
-      // Se ainda carregando, aguarda PRONTO antes de enviar
       if (status === "carregando" || status === "inativo") {
         const original = worker.onmessage;
         worker.onmessage = (e: MessageEvent) => {
@@ -145,5 +157,5 @@ export function useMotor(): UseMotorReturn {
     };
   }, []);
 
-  return { status, linhas, melhorAvaliacao, analisar, parar };
+  return { status, linhas, melhorAvaliacao, fenLinhas, analisar, parar };
 }
