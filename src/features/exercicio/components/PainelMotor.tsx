@@ -85,7 +85,10 @@ export function PainelMotor({ fen }: PainelMotorProps) {
   // quando o board avança antes de 'linhas' ser limpo).
   const fenParaConversao = fenLinhas || fen;
   const orientacao = turnoDoFen(fenParaConversao);
-  const principal = linhas.find((l) => l.multipv === 1);
+  // Só exibe linhas geradas para o FEN atual — evita mostrar análise de exercício anterior
+  // enquanto o worker ainda não recebeu o novo FEN (janela de timing entre render e effect).
+  const linhesValidas = fenLinhas === fen ? linhas : [];
+  const principal = linhesValidas.find((l) => l.multipv === 1);
 
   return (
     <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-3">
@@ -118,9 +121,9 @@ export function PainelMotor({ fen }: PainelMotorProps) {
         {status === "analisando" ? "Parar análise" : "Analisar posição"}
       </Button>
 
-      {aberto && linhas.length > 0 && (
+      {aberto && linhesValidas.length > 0 && (
         <div className="mt-3 space-y-2">
-          {linhas.map((linha) => (
+          {linhesValidas.map((linha) => (
             <div
               key={linha.multipv}
               className="rounded-lg bg-[var(--color-superficie-secundaria)] px-3 py-2"
@@ -143,7 +146,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
         </div>
       )}
 
-      {aberto && melhorAvaliacao && (
+      {aberto && melhorAvaliacao && linhesValidas.length > 0 && (
         <p className="mt-2 text-xs text-[var(--color-conteudo-terciario)]">
           {melhorAvaliacao.melhorLance && melhorAvaliacao.melhorLance !== "(none)" ? (
             <>
