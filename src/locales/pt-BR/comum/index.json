@@ -1,5 +1,5 @@
 {
-  "app": { "nome": "Personal Chess Trainer" },
+  "app": { "nome": "Tacticus" },
   "acoes": {
     "salvar": "Salvar",
     "cancelar": "Cancelar",

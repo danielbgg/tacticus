@@ -1,6 +1,7 @@
 import { AnimatePresence } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { TacticusLogo } from "@/shared/components/TacticusLogo/TacticusLogo";
 import { Skeleton } from "@/shared/components/Skeleton/Skeleton";
 import { ErrorMessage } from "@/shared/components/ErrorMessage/ErrorMessage";
 import { EmptyState } from "@/shared/components/EmptyState/EmptyState";
@@ -32,11 +33,14 @@ export function SelecaoPerfil() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-fundo)] p-6">
       <div className="w-full max-w-md">
         <header className="mb-8 text-center">
-          <span className="text-6xl" aria-hidden="true">
-            ♔
-          </span>
-          <h1 className="mt-4 text-2xl font-bold text-[var(--color-conteudo-primario)]">
-            Personal Chess Trainer
+          <div className="flex justify-center" aria-hidden="true">
+            <TacticusLogo
+              showText={false}
+              className="h-16 w-16 text-[var(--color-conteudo-primario)]"
+            />
+          </div>
+          <h1 className="mt-4 text-2xl font-bold tracking-[0.12em] uppercase text-[var(--color-conteudo-primario)]">
+            Tacticus
           </h1>
           <p className="mt-1 text-[var(--color-conteudo-secundario)]">{t("selecionePerfil")}</p>
         </header>

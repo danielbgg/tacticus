@@ -341,6 +341,7 @@ CI mede e falha builds que violem estes limites.
 
 ### 8.1 Commits
 
+- **Todo commit deve ser imediatamente seguido de `git push` para o branch correspondente no GitHub.** Não acumular commits locais sem push.
 - Formato: **Conventional Commits** obrigatório
   ```
   feat(exercicio): adicionar sistema de dicas em 3 níveis

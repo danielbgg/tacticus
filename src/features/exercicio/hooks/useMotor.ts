@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { Chess } from "chess.js";
 import type { AvaliacaoMotor } from "@/shared/types/domain";
 
 type StatusMotor = "inativo" | "carregando" | "pronto" | "analisando" | "erro";
@@ -7,16 +8,38 @@ interface LinhaAnalise {
   depth: number;
   multipv: number;
   score: { tipo: "cp" | "mate"; valor: number };
-  lances: string[];
+  lances: string[]; // armazenados em SAN após conversão
 }
 
 interface UseMotorReturn {
   status: StatusMotor;
   linhas: LinhaAnalise[];
   melhorAvaliacao: AvaliacaoMotor | null;
-  fenLinhas: string; // FEN para o qual 'linhas' foi gerado — usar em uciParaSan
+  fenLinhas: string; // FEN para o qual 'linhas' foi gerado
   analisar: (fen: string, profundidade?: number) => void;
   parar: () => void;
+}
+
+// Converte lances UCI → SAN usando o FEN recebido junto com a mensagem do worker.
+// A conversão acontece no momento da chegada (não na renderização), garantindo
+// que o FEN e os lances sempre correspondam ao mesmo estado de jogo.
+function uciParaSan(fen: string, lances: string[]): string[] {
+  if (!fen || lances.length === 0) return lances;
+  try {
+    const chess = new Chess(fen);
+    const resultado: string[] = [];
+    for (const lance of lances) {
+      const from = lance.slice(0, 2);
+      const to = lance.slice(2, 4);
+      const promotion = lance.length === 5 ? lance[4] : undefined;
+      const move = chess.move(promotion ? { from, to, promotion } : { from, to });
+      if (!move) break;
+      resultado.push(move.san);
+    }
+    return resultado.length > 0 ? resultado : lances;
+  } catch {
+    return lances;
+  }
 }
 
 export function useMotor(): UseMotorReturn {
@@ -26,8 +49,8 @@ export function useMotor(): UseMotorReturn {
   const [melhorAvaliacao, setMelhorAvaliacao] = useState<AvaliacaoMotor | null>(null);
   const [fenLinhas, setFenLinhas] = useState<string>("");
 
-  // FEN que foi enviado mais recentemente ao worker — filtra mensagens obsoletas.
-  // Usa ref (não state) para leitura síncrona dentro dos handlers de mensagem.
+  // FEN enviado mais recentemente ao worker — filtra mensagens obsoletas.
+  // Ref (não state) para leitura síncrona nos handlers de mensagem.
   const ultimoFenRef = useRef<string>("");
 
   const garantirWorker = useCallback((): Worker | null => {
@@ -54,10 +77,12 @@ export function useMotor(): UseMotorReturn {
       }
 
       if (msg.tipo === "LINHA_ANALISE") {
-        // Descarta mensagens de análises anteriores pelo FEN
         if (msg.fen !== ultimoFenRef.current) return;
 
         const linha = msg as unknown as LinhaAnalise & { tipo: string; fen: string };
+        // Converte os lances UCI → SAN usando o FEN que o worker está analisando.
+        // Isso garante que o FEN e os lances são sempre do mesmo estado de jogo.
+        const lancesSan = uciParaSan(linha.fen, linha.lances);
         setFenLinhas(linha.fen);
         setLinhas((prev) => {
           const sem = prev.filter((l) => l.multipv !== linha.multipv);
@@ -67,7 +92,7 @@ export function useMotor(): UseMotorReturn {
               depth: linha.depth,
               multipv: linha.multipv,
               score: linha.score,
-              lances: linha.lances,
+              lances: lancesSan,
             },
           ].sort((a, b) => a.multipv - b.multipv);
         });
@@ -77,11 +102,14 @@ export function useMotor(): UseMotorReturn {
       if (msg.tipo === "ANALISE_COMPLETA") {
         if (msg.fen !== ultimoFenRef.current) return;
 
-        const melhorLance = msg.melhorLance as string;
+        const fenCompleto = msg.fen as string;
+        const melhorLanceUci = msg.melhorLance as string;
+        const melhorLanceSan = uciParaSan(fenCompleto, [melhorLanceUci])[0] ?? melhorLanceUci;
+
         setLinhas((prev) => {
           const principal = prev.find((l) => l.multipv === 1);
           setMelhorAvaliacao({
-            melhorLance,
+            melhorLance: melhorLanceSan,
             centipawns: principal?.score.tipo === "cp" ? principal.score.valor : null,
             mate: principal?.score.tipo === "mate" ? principal.score.valor : null,
             profundidade: principal?.depth ?? 0,
@@ -114,8 +142,6 @@ export function useMotor(): UseMotorReturn {
       const worker = garantirWorker();
       if (!worker) return;
 
-      // Atualiza ref ANTES de limpar estado — garante que qualquer mensagem
-      // com fen diferente chegando logo depois seja filtrada corretamente.
       ultimoFenRef.current = fen;
       setLinhas([]);
       setMelhorAvaliacao(null);

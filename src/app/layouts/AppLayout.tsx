@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
+import { TacticusLogo } from "@/shared/components/TacticusLogo/TacticusLogo";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -31,12 +31,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       {exibirNav && (
         <nav
           aria-label="Navegação principal"
-          className="group flex flex-col w-16 hover:w-56 transition-[width] duration-200 border-r border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] overflow-hidden shrink-0"
+          className="flex flex-col w-52 border-r border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] shrink-0"
         >
-          <div className="p-3 border-b border-[var(--color-borda)]">
-            <span className="text-2xl" aria-hidden="true">
-              ♚
-            </span>
+          <div className="px-3 py-3.5 border-b border-[var(--color-borda)]">
+            <TacticusLogo className="text-[var(--color-conteudo-primario)]" />
           </div>
           <ul className="flex flex-col gap-1 p-2 mt-2" role="list">
             {navItems.map((item) => (
@@ -52,9 +50,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <span className="text-xl shrink-0" aria-hidden="true">
                     {item.icon}
                   </span>
-                  <span className="text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                    {item.label}
-                  </span>
+                  <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
                 </Link>
               </li>
             ))}

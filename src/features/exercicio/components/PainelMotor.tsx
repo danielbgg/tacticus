@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Chess } from "chess.js";
+import { useState, useCallback, useEffect } from "react";
 import { useMotor } from "@/features/exercicio/hooks/useMotor";
 import { Button } from "@/shared/components/Button/Button";
 
@@ -37,37 +36,14 @@ function turnoDoFen(fen: string): "w" | "b" {
   return fen.split(" ")[1] === "b" ? "b" : "w";
 }
 
-// Converte lances UCI em SAN usando o FEN exato da posição analisada.
-function uciParaSan(fen: string, lances: string[]): string[] {
-  if (!fen || lances.length === 0) return lances;
-  try {
-    const chess = new Chess(fen);
-    const resultado: string[] = [];
-    for (const lance of lances) {
-      const from = lance.slice(0, 2);
-      const to = lance.slice(2, 4);
-      const promotion = lance.length === 5 ? lance[4] : undefined;
-      const move = chess.move(promotion ? { from, to, promotion } : { from, to });
-      if (!move) break;
-      resultado.push(move.san);
-    }
-    return resultado;
-  } catch {
-    return lances;
-  }
-}
-
 export function PainelMotor({ fen, exercicioId }: PainelMotorProps) {
   const { status, linhas, melhorAvaliacao, fenLinhas, analisar, parar } = useMotor();
   const [aberto, setAberto] = useState(false);
-  // FEN capturado no momento em que o usuário clicou "Analisar" — não muda com movimentos do board
-  const fenAnaliseRef = useRef<string>("");
 
   // Ao trocar de exercício: fecha o painel e encerra a análise
   useEffect(() => {
     setAberto(false);
     parar();
-    fenAnaliseRef.current = "";
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercicioId]);
 
@@ -76,18 +52,16 @@ export function PainelMotor({ fen, exercicioId }: PainelMotorProps) {
       parar();
       setAberto(false);
     } else {
-      fenAnaliseRef.current = fen;
       setAberto(true);
       analisar(fen, 18);
     }
   }, [status, fen, analisar, parar]);
 
-  // fenAnaliseRef.current é o FEN que foi enviado ao worker.
-  // fenLinhas é o FEN do qual as linhas foram geradas (atualizado a cada mensagem do worker).
-  // Só exibe linhas quando fenLinhas coincide com o FEN da análise atual.
-  const fenDaAnalise = fenAnaliseRef.current;
-  const linhesValidas = fenLinhas && fenLinhas === fenDaAnalise ? linhas : [];
-  const orientacao = turnoDoFen(fenDaAnalise || fen);
+  // Só exibe linhas quando fenLinhas corresponde ao fen atual —
+  // garante que lances (já convertidos para SAN em useMotor) pertencem
+  // ao estado de jogo exibido no tabuleiro.
+  const orientacao = turnoDoFen(fenLinhas || fen);
+  const linhesValidas = fenLinhas === fen ? linhas : [];
   const principal = linhesValidas.find((l) => l.multipv === 1);
 
   return (
@@ -138,8 +112,9 @@ export function PainelMotor({ fen, exercicioId }: PainelMotorProps) {
                   prof. {linha.depth}
                 </span>
               </div>
+              {/* lances já estão em SAN — convertidos em useMotor na chegada da mensagem */}
               <p className="font-mono text-xs text-[var(--color-conteudo-secundario)] truncate">
-                {uciParaSan(fenDaAnalise, linha.lances).slice(0, 6).join(" ")}
+                {linha.lances.slice(0, 6).join(" ")}
               </p>
             </div>
           ))}
@@ -150,10 +125,9 @@ export function PainelMotor({ fen, exercicioId }: PainelMotorProps) {
         <p className="mt-2 text-xs text-[var(--color-conteudo-terciario)]">
           {melhorAvaliacao.melhorLance && melhorAvaliacao.melhorLance !== "(none)" ? (
             <>
-              Melhor lance:{" "}
+              Melhor lance: {/* melhorLance já está em SAN — convertido em useMotor */}
               <span className="font-mono font-medium text-[var(--color-conteudo-primario)]">
-                {uciParaSan(fenDaAnalise, [melhorAvaliacao.melhorLance])[0] ??
-                  melhorAvaliacao.melhorLance}
+                {melhorAvaliacao.melhorLance}
               </span>
             </>
           ) : (
