@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Chess } from "chess.js";
 import { useMotor } from "@/features/exercicio/hooks/useMotor";
 import { Button } from "@/shared/components/Button/Button";
 
 interface PainelMotorProps {
   fen: string;
+  exercicioId?: string | undefined;
 }
 
 function formatarScore(
@@ -36,11 +37,9 @@ function turnoDoFen(fen: string): "w" | "b" {
   return fen.split(" ")[1] === "b" ? "b" : "w";
 }
 
-// Converte lances UCI em SAN usando o FEN de onde a análise foi iniciada.
-// Usa fenLinhas (não o prop fen) para evitar erros quando o board avança
-// mas linhas antigas ainda estão no estado.
+// Converte lances UCI em SAN usando o FEN exato da posição analisada.
 function uciParaSan(fen: string, lances: string[]): string[] {
-  if (!fen) return lances;
+  if (!fen || lances.length === 0) return lances;
   try {
     const chess = new Chess(fen);
     const resultado: string[] = [];
@@ -58,36 +57,37 @@ function uciParaSan(fen: string, lances: string[]): string[] {
   }
 }
 
-export function PainelMotor({ fen }: PainelMotorProps) {
+export function PainelMotor({ fen, exercicioId }: PainelMotorProps) {
   const { status, linhas, melhorAvaliacao, fenLinhas, analisar, parar } = useMotor();
   const [aberto, setAberto] = useState(false);
+  // FEN capturado no momento em que o usuário clicou "Analisar" — não muda com movimentos do board
+  const fenAnaliseRef = useRef<string>("");
 
-  // Quando o FEN muda (novo exercício) e o painel está aberto, re-analisa automaticamente.
-  // O worker para a análise anterior antes de iniciar a nova.
+  // Ao trocar de exercício: fecha o painel e encerra a análise
   useEffect(() => {
-    if (aberto && fen) {
-      analisar(fen, 18);
-    }
+    setAberto(false);
+    parar();
+    fenAnaliseRef.current = "";
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fen]);
+  }, [exercicioId]);
 
   const handleAnalisar = useCallback(() => {
-    if (!aberto) setAberto(true);
     if (status === "analisando") {
       parar();
+      setAberto(false);
     } else {
+      fenAnaliseRef.current = fen;
+      setAberto(true);
       analisar(fen, 18);
     }
-  }, [aberto, status, fen, analisar, parar]);
+  }, [status, fen, analisar, parar]);
 
-  // fenLinhas é o FEN para o qual 'linhas' foi gerado — usar aqui evita que
-  // uciParaSan receba lances de posição A com o FEN atual B (race condition
-  // quando o board avança antes de 'linhas' ser limpo).
-  const fenParaConversao = fenLinhas || fen;
-  const orientacao = turnoDoFen(fenParaConversao);
-  // Só exibe linhas geradas para o FEN atual — evita mostrar análise de exercício anterior
-  // enquanto o worker ainda não recebeu o novo FEN (janela de timing entre render e effect).
-  const linhesValidas = fenLinhas === fen ? linhas : [];
+  // fenAnaliseRef.current é o FEN que foi enviado ao worker.
+  // fenLinhas é o FEN do qual as linhas foram geradas (atualizado a cada mensagem do worker).
+  // Só exibe linhas quando fenLinhas coincide com o FEN da análise atual.
+  const fenDaAnalise = fenAnaliseRef.current;
+  const linhesValidas = fenLinhas && fenLinhas === fenDaAnalise ? linhas : [];
+  const orientacao = turnoDoFen(fenDaAnalise || fen);
   const principal = linhesValidas.find((l) => l.multipv === 1);
 
   return (
@@ -139,7 +139,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
                 </span>
               </div>
               <p className="font-mono text-xs text-[var(--color-conteudo-secundario)] truncate">
-                {uciParaSan(fenParaConversao, linha.lances).slice(0, 6).join(" ")}
+                {uciParaSan(fenDaAnalise, linha.lances).slice(0, 6).join(" ")}
               </p>
             </div>
           ))}
@@ -152,7 +152,7 @@ export function PainelMotor({ fen }: PainelMotorProps) {
             <>
               Melhor lance:{" "}
               <span className="font-mono font-medium text-[var(--color-conteudo-primario)]">
-                {uciParaSan(fenParaConversao, [melhorAvaliacao.melhorLance])[0] ??
+                {uciParaSan(fenDaAnalise, [melhorAvaliacao.melhorLance])[0] ??
                   melhorAvaliacao.melhorLance}
               </span>
             </>

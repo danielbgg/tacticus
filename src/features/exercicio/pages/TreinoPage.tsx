@@ -240,7 +240,7 @@ export function TreinoPage() {
             moduloNome={unidadeInfo?.moduloNome}
           />
           <PainelNotacao lances={lancesNotacao} />
-          {fenAtual && <PainelMotor fen={fenAtual} />}
+          {fenAtual && <PainelMotor fen={fenAtual} exercicioId={store.exercicioAtual?.id} />}
         </div>
       </div>
     </div>
