@@ -127,18 +127,29 @@ for (const tema of TEMAS) {
   }
 }
 
-// Prioridade de tag para resolver qual tema um puzzle "pertence" (menor = maior prioridade)
+// Prioridade de tag para ATRIBUIÇÃO DE TEMA (qual tema "ganha" quando um puzzle tem vários tags).
+// Padrões específicos de mate (backRankMate, hookMate etc.) têm prioridade maior que tags
+// genéricas (mateIn1/2/3) para que um puzzle "mateIn2 hookMate" vá para "Padrões de Mate",
+// não para "Xeque-mate em 2".
 const TAG_PRIORITY = {
-  mateIn1: 0, mateIn2: 1, mateIn3: 2, mateIn4: 3, mateIn5: 4,
-  backRankMate: 10, anastasiaMate: 10, arabianMate: 10, smotheredMate: 10,
-  hookMate: 10, dovetailMate: 10, bodenMate: 10, doubleBishopMate: 10, queenRookMate: 10,
+  backRankMate: 5,
+  anastasiaMate: 5, arabianMate: 5, smotheredMate: 5, hookMate: 5,
+  dovetailMate: 5, bodenMate: 5, doubleBishopMate: 5, queenRookMate: 5,
+  mateIn1: 10, mateIn2: 11, mateIn3: 12, mateIn4: 13, mateIn5: 14,
   hangingPiece: 20, fork: 30, pin: 30, skewer: 30, attackingF2F7: 35,
   discoveredAttack: 40, doubleCheck: 40,
   deflection: 50, attraction: 50, interference: 50, trappedPiece: 50, zugzwang: 60,
 };
 
-// Prioridade de tema para ordenação progressiva DENTRO de cada Círculo
-const CIRCLE_THEME_PRIORITY = { ...TAG_PRIORITY };
+// Prioridade de tema para ordenação progressiva DENTRO de cada Círculo (independente de TAG_PRIORITY)
+const CIRCLE_THEME_PRIORITY = {
+  mateIn1: 0, mateIn2: 1, mateIn3: 2, mateIn4: 3, mateIn5: 4,
+  anastasiaMate: 10, arabianMate: 10, backRankMate: 10, bodenMate: 10, doubleBishopMate: 10,
+  dovetailMate: 10, hookMate: 10, smotheredMate: 10, queenRookMate: 10,
+  hangingPiece: 20, fork: 30, pin: 30, skewer: 30, attackingF2F7: 35,
+  discoveredAttack: 40, doubleCheck: 40,
+  deflection: 50, attraction: 50, interference: 50, trappedPiece: 50, zugzwang: 60,
+};
 
 // ── Filtros de qualidade ──────────────────────────────────────────────────────
 // Reduza esses valores se módulos de rating alto ficarem com poucos puzzles.

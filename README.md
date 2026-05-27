@@ -18,7 +18,7 @@ O Tacticus implementa esse método com:
 ## Funcionalidades
 
 ### Treinamento Tático
-- Mais de **14.000 puzzles táticos** da [Lichess Open Database](https://database.lichess.org/#puzzles) (CC0 — domínio público), incluídos no instalador
+- Mais de **19.000 puzzles táticos** da [Lichess Open Database](https://database.lichess.org/#puzzles) (CC0 — domínio público), incluídos no instalador
 - **10 Círculos de Treino** (rating 400–2500+): progressão pura de dificuldade para todos os níveis
 - **17 Módulos Temáticos** exclusivos dos círculos: Garfo, Cravada, Espeto, Xeque-mate em 1/2/3+, Padrões de Mate, Ataque Descoberto, Desvio, Atração e mais
 - Exercícios ordenados por dificuldade crescente dentro de cada módulo e unidade
