@@ -20,6 +20,12 @@ const MIGRATIONS = [
   () => import("./migrations/0006_circles_puzzles.sql?raw").then((m) => m.default),
   () => import("./migrations/0007_circles_v2.sql?raw").then((m) => m.default),
   () => import("./migrations/0008_sessao_unidade.sql?raw").then((m) => m.default),
+  () => import("./migrations/0009_limpeza_redesign.sql?raw").then((m) => m.default),
+  // Migrations 10 e 11 são geradas pelo script scripts/lichess-to-sql.mjs
+  // Execute: node scripts/lichess-to-sql.mjs <caminho-do-csv>
+  // Depois adicione aqui:
+  // () => import("./migrations/0010_circles_v3.sql?raw").then((m) => m.default),
+  // () => import("./migrations/0011_tatica_tematica.sql?raw").then((m) => m.default),
 ];
 
 async function runMigrations(db: Database): Promise<void> {
