@@ -103,10 +103,43 @@ export function RevisaoPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-4 text-lg font-bold text-[var(--color-conteudo-primario)]">
-        Revisão Espaçada
-      </h1>
+    <div className="mx-auto max-w-2xl p-6 flex flex-col gap-5">
+      {/* Banner informativo */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1a3a] to-[#0f0f2a] border border-[#4040a0]/50 p-5">
+        <div className="absolute top-0 right-0 w-40 h-40 opacity-5 text-[8rem] leading-none select-none pointer-events-none">
+          🧠
+        </div>
+        <div className="relative">
+          <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">
+            Repetição Espaçada · Algoritmo SM-2
+          </span>
+          <h1 className="text-base font-bold text-white mt-1 mb-1">Revisão Espaçada</h1>
+          <p className="text-sm text-indigo-200/70 max-w-lg">
+            Ao dominar um exercício (5 acertos consecutivos), ele sai do treino e entra na fila de
+            revisão. O algoritmo SM-2 agenda automaticamente quando você precisa revê-lo —
+            intervalos crescentes que treinam a memória de longo prazo sem desperdiçar tempo com o
+            que você já sabe.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-indigo-300/60">
+            <span>1ª revisão: ~2 dias</span>
+            <span>·</span>
+            <span>2ª: ~7 dias</span>
+            <span>·</span>
+            <span>3ª: ~17 dias</span>
+            <span>·</span>
+            <span>4ª: ~35 dias</span>
+            <span>·</span>
+            <span>5ª: ~75 dias</span>
+            <span>·</span>
+            <span>6ª+: ~225 dias</span>
+          </div>
+          <div className="mt-2 text-xs text-indigo-400/80 font-medium">
+            {exercicios.length}{" "}
+            {exercicios.length === 1 ? "exercício pendente" : "exercícios pendentes"} hoje
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-[1fr_280px]">
         <TabuleiroInterativo
           onLanceCorreto={(t) => processarLance(true, t)}
