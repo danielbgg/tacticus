@@ -9,7 +9,8 @@ interface AppLayoutProps {
 
 const navItems = [
   { path: "/home", label: "Início", icon: "⊕" },
-  { path: "/banco", label: "Treinar", icon: "♟" },
+  { path: "/circulos", label: "Círculos de Treino", icon: "♟" },
+  { path: "/tematico", label: "Treino Temático", icon: "♞" },
   { path: "/revisao", label: "Revisar", icon: "🔄" },
   { path: "/estatisticas", label: "Estatísticas", icon: "📊" },
   { path: "/configuracoes", label: "Configurações", icon: "⚙" },

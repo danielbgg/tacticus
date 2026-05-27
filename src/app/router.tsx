@@ -52,11 +52,19 @@ const estatisticasRoute = createRoute({
   ),
 });
 
-const bancoRoute = createRoute({
+const circulosRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/banco",
+  path: "/circulos",
   component: lazy(() =>
-    import("../features/banco/pages/BancoPage").then((m) => ({ default: m.BancoPage })),
+    import("../features/banco/pages/CirculosPage").then((m) => ({ default: m.CirculosPage })),
+  ),
+});
+
+const tematicoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tematico",
+  component: lazy(() =>
+    import("../features/banco/pages/TematicoPage").then((m) => ({ default: m.TematicoPage })),
   ),
 });
 
@@ -84,7 +92,8 @@ const routeTree = rootRoute.addChildren([
   treinarRoute,
   revisaoRoute,
   estatisticasRoute,
-  bancoRoute,
+  circulosRoute,
+  tematicoRoute,
   configuracoesRoute,
   perfilNovoRoute,
 ]);

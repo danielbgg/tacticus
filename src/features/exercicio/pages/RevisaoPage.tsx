@@ -85,7 +85,7 @@ export function RevisaoPage() {
         titulo="Nenhuma revisão pendente"
         descricao="Todos os exercícios dominados estão em dia. Continue treinando!"
         acaoLabel="Ir para o banco"
-        onAcao={() => navigate({ to: "/banco" })}
+        onAcao={() => navigate({ to: "/circulos" })}
       />
     );
   }

@@ -180,7 +180,7 @@ export function TreinoPage() {
         titulo={t("semExercicios")}
         descricao={t("semExerciciosDescricao")}
         acaoLabel={t("voltarBanco")}
-        onAcao={() => navigate({ to: "/banco" })}
+        onAcao={() => navigate({ to: "/circulos" })}
       />
     );
   }
@@ -201,7 +201,7 @@ export function TreinoPage() {
           })}
         </p>
         <button
-          onClick={() => navigate({ to: "/banco" })}
+          onClick={() => navigate({ to: "/circulos" })}
           className="mt-4 rounded-lg bg-[var(--color-acento)] px-6 py-3 font-semibold text-white"
         >
           {t("voltarBanco")}

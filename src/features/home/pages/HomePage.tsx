@@ -349,7 +349,7 @@ export function HomePage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <Card
           interactive
-          onClick={() => navigate({ to: "/banco" })}
+          onClick={() => navigate({ to: "/circulos" })}
           className="flex items-center gap-3"
         >
           <span className="text-3xl shrink-0" aria-hidden="true">
