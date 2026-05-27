@@ -6,8 +6,9 @@ let _db: Database | null = null;
 
 export async function getDb(): Promise<Database> {
   if (_db) return _db;
-  _db = await Database.load("sqlite:personal-chess-trainer.db");
-  await runMigrations(_db);
+  const db = await Database.load("sqlite:personal-chess-trainer.db");
+  await runMigrations(db);
+  _db = db; // só cacheia após migrations concluírem com sucesso
   return _db;
 }
 
