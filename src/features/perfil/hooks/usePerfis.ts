@@ -4,6 +4,7 @@ import {
   listarPerfis,
   criarPerfil,
   excluirPerfil,
+  renomearPerfil,
   atualizarUltimoAcesso,
 } from "@/db/queries/perfis";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
@@ -57,6 +58,20 @@ export function useExcluirPerfil() {
     },
     onSuccess: (_, id) => {
       removerPerfil(id);
+      queryClient.invalidateQueries({ queryKey: ["perfis"] });
+    },
+  });
+}
+
+export function useRenomearPerfil() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, nome }: { id: PerfilId; nome: string }) => {
+      const db = await getDb();
+      const resultado = await renomearPerfil(db as never, id, nome);
+      if (!resultado.ok) throw new Error(resultado.error);
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["perfis"] });
     },
   });

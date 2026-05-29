@@ -99,3 +99,16 @@ export async function excluirPerfil(db: Database, id: PerfilId): Promise<Result<
     return err(e instanceof Error ? e.message : "Erro ao excluir perfil");
   }
 }
+
+export async function renomearPerfil(
+  db: Database,
+  id: PerfilId,
+  novoNome: string,
+): Promise<Result<void, string>> {
+  try {
+    await db.execute("UPDATE perfis SET nome = ? WHERE id = ?", [novoNome, id]);
+    return ok(undefined);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao renomear perfil");
+  }
+}

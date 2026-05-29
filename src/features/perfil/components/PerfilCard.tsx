@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/shared/components/Card/Card";
 import { Button } from "@/shared/components/Button/Button";
@@ -10,6 +11,8 @@ interface PerfilCardProps {
 }
 
 export function PerfilCard({ perfil, onSelecionar, onExcluir }: PerfilCardProps) {
+  const [confirmando, setConfirmando] = useState(false);
+
   const ultimoAcesso = perfil.ultimoAcesso.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -25,13 +28,13 @@ export function PerfilCard({ perfil, onSelecionar, onExcluir }: PerfilCardProps)
       transition={{ duration: 0.2 }}
     >
       <Card
-        interactive
-        onClick={() => onSelecionar(perfil)}
+        interactive={!confirmando}
+        onClick={() => !confirmando && onSelecionar(perfil)}
         className="flex items-center gap-4"
         role="button"
         tabIndex={0}
         aria-label={`Selecionar perfil ${perfil.nome}`}
-        onKeyDown={(e) => e.key === "Enter" && onSelecionar(perfil)}
+        onKeyDown={(e) => !confirmando && e.key === "Enter" && onSelecionar(perfil)}
       >
         <span className="text-4xl" aria-hidden="true">
           {perfil.avatar}
@@ -40,24 +43,52 @@ export function PerfilCard({ perfil, onSelecionar, onExcluir }: PerfilCardProps)
           <p className="font-semibold text-[var(--color-conteudo-primario)] truncate">
             {perfil.nome}
           </p>
-          <p className="text-sm text-[var(--color-conteudo-secundario)] capitalize">
-            {perfil.nivel}
-          </p>
-          <p className="text-xs text-[var(--color-conteudo-terciario)]">Acesso em {ultimoAcesso}</p>
+          {confirmando ? (
+            <p className="text-xs text-red-400 mt-0.5">Excluir permanentemente?</p>
+          ) : (
+            <>
+              <p className="text-sm text-[var(--color-conteudo-secundario)] capitalize">
+                {perfil.nivel}
+              </p>
+              <p className="text-xs text-[var(--color-conteudo-terciario)]">
+                Acesso em {ultimoAcesso}
+              </p>
+            </>
+          )}
         </div>
-        {onExcluir && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Excluir perfil ${perfil.nome}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onExcluir(perfil);
-            }}
-          >
-            ✕
-          </Button>
-        )}
+        {onExcluir &&
+          (confirmando ? (
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="border-red-500/50 text-red-500 hover:bg-red-500/10 text-xs px-2 py-1"
+                onClick={() => onExcluir(perfil)}
+              >
+                Confirmar
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs px-2 py-1"
+                onClick={() => setConfirmando(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Excluir perfil ${perfil.nome}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmando(true);
+              }}
+            >
+              ✕
+            </Button>
+          ))}
       </Card>
     </motion.div>
   );

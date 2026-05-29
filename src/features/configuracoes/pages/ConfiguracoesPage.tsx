@@ -5,7 +5,7 @@ import i18n from "i18next";
 import { Card } from "@/shared/components/Card/Card";
 import { Button } from "@/shared/components/Button/Button";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
-import { useExcluirPerfil } from "@/features/perfil/hooks/usePerfis";
+import { usePerfis, useExcluirPerfil, useRenomearPerfil } from "@/features/perfil/hooks/usePerfis";
 import { getDb } from "@/db/schema";
 import { salvarConfiguracoes } from "@/db/queries/configuracoes";
 import type {
@@ -56,7 +56,19 @@ export function ConfiguracoesPage() {
   const setConfiguracoes = usePerfilStore((s) => s.setConfiguracoes);
   const setPerfilAtivo = usePerfilStore((s) => s.setPerfilAtivo);
   const excluirPerfil = useExcluirPerfil();
+  const renomearPerfil = useRenomearPerfil();
+  const { data: perfis } = usePerfis();
+  const perfilAtivo = perfis?.find((p) => p.id === perfilAtivoId) ?? null;
+
   const [excluindo, setExcluindo] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [renomeando, setRenomeando] = useState(false);
+  const [renomeado, setRenomeado] = useState(false);
+
+  useEffect(() => {
+    if (perfilAtivo) setNovoNome(perfilAtivo.nome);
+  }, [perfilAtivo?.nome]);
 
   const [config, setConfig] = useState<Partial<ConfiguracoesPerfil>>(
     configuracoes ?? {
@@ -108,9 +120,71 @@ export function ConfiguracoesPage() {
     }
   }
 
+  async function handleRenomear() {
+    if (!perfilAtivoId || !novoNome.trim() || novoNome.trim() === perfilAtivo?.nome) return;
+    setRenomeando(true);
+    try {
+      await renomearPerfil.mutateAsync({ id: perfilAtivoId, nome: novoNome.trim() });
+      setRenomeado(true);
+      setTimeout(() => setRenomeado(false), 2000);
+    } finally {
+      setRenomeando(false);
+    }
+  }
+
+  function handleLogout() {
+    setPerfilAtivo(null);
+    navigate({ to: "/" });
+  }
+
   return (
     <div className="p-6 max-w-2xl mx-auto flex flex-col gap-6">
       <h1 className="text-xl font-bold text-[var(--color-conteudo-primario)]">Configurações</h1>
+
+      {/* Perfil */}
+      <Card>
+        <h2 className="mb-4 font-semibold text-[var(--color-conteudo-primario)]">Perfil</h2>
+        <div className="flex flex-col gap-4">
+          {/* Renomear */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="novoNome" className="text-sm text-[var(--color-conteudo-secundario)]">
+              Nome
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="novoNome"
+                type="text"
+                value={novoNome}
+                onChange={(e) => setNovoNome(e.target.value)}
+                maxLength={30}
+                className="flex-1 rounded-lg border border-[var(--color-borda)] bg-[var(--color-superficie-primaria)] px-3 py-2 text-sm text-[var(--color-conteudo-primario)] outline-none focus:border-[var(--color-acento)] focus:ring-2 focus:ring-[var(--color-acento)]/30"
+              />
+              <Button
+                variant="ghost"
+                onClick={handleRenomear}
+                isLoading={renomeando}
+                disabled={!novoNome.trim() || novoNome.trim() === perfilAtivo?.nome}
+              >
+                {renomeado ? "✓ Salvo" : "Renomear"}
+              </Button>
+            </div>
+          </div>
+          {/* Trocar perfil */}
+          <div className="flex items-center justify-between pt-2 border-t border-[var(--color-borda)]">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-conteudo-primario)]">
+                Trocar perfil
+              </p>
+              <p className="text-xs text-[var(--color-conteudo-terciario)]">
+                Volta para a tela de seleção de perfis
+              </p>
+            </div>
+            <Button variant="ghost" onClick={handleLogout}>
+              Sair
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <Card>
         <h2 className="mb-4 font-semibold text-[var(--color-conteudo-primario)]">Tema</h2>
@@ -245,28 +319,44 @@ export function ConfiguracoesPage() {
           Exclui permanentemente o perfil e todos os dados associados: progresso, tentativas,
           sessões e estatísticas. Esta ação não pode ser desfeita.
         </p>
-        <Button
-          variant="ghost"
-          isLoading={excluindo}
-          onClick={async () => {
-            if (!perfilAtivoId) return;
-            const confirmado = window.confirm(
-              "Tem certeza? Todos os dados deste perfil serão excluídos permanentemente.",
-            );
-            if (!confirmado) return;
-            setExcluindo(true);
-            try {
-              await excluirPerfil.mutateAsync(perfilAtivoId);
-              setPerfilAtivo(null);
-              navigate({ to: "/" });
-            } finally {
-              setExcluindo(false);
-            }
-          }}
-          className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:border-red-500"
-        >
-          Excluir perfil e todos os dados
-        </Button>
+        {confirmandoExclusao ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-red-400">
+              ⚠ Tem certeza? Esta ação é irreversível.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                isLoading={excluindo}
+                onClick={async () => {
+                  if (!perfilAtivoId) return;
+                  setExcluindo(true);
+                  try {
+                    await excluirPerfil.mutateAsync(perfilAtivoId);
+                    setPerfilAtivo(null);
+                    navigate({ to: "/" });
+                  } finally {
+                    setExcluindo(false);
+                  }
+                }}
+                className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:border-red-500"
+              >
+                Sim, excluir permanentemente
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmandoExclusao(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            onClick={() => setConfirmandoExclusao(true)}
+            className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:border-red-500"
+          >
+            Excluir perfil e todos os dados
+          </Button>
+        )}
       </Card>
     </div>
   );

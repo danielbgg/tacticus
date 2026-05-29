@@ -25,7 +25,6 @@ export function SelecaoPerfil() {
   }
 
   async function handleExcluir(perfil: Perfil) {
-    if (!confirm(t("confirmarExclusao", { nome: perfil.nome }))) return;
     await excluir.mutateAsync(perfil.id);
   }
 
