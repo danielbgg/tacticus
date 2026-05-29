@@ -13,7 +13,7 @@ import { EmptyState } from "@/shared/components/EmptyState/EmptyState";
 import { Skeleton } from "@/shared/components/Skeleton/Skeleton";
 import { Button } from "@/shared/components/Button/Button";
 import { getDb } from "@/db/schema";
-import { buscarUnidadeComModulo } from "@/db/queries/estrutura";
+import { buscarUnidadeComModulo, buscarProximaUnidade } from "@/db/queries/estrutura";
 import type { UnidadeId } from "@/shared/types/branded";
 
 type FasePagina = "carregando" | "dialogo-retomar" | "treinando" | "concluida" | "vazia";
@@ -39,6 +39,15 @@ export function TreinoPage() {
     queryFn: async () => {
       const db = await getDb();
       const r = await buscarUnidadeComModulo(db as never, unidadeId);
+      return r.ok ? r.value : null;
+    },
+  });
+
+  const { data: proximaUnidade } = useQuery({
+    queryKey: ["proxima-unidade", unidadeId],
+    queryFn: async () => {
+      const db = await getDb();
+      const r = await buscarProximaUnidade(db as never, unidadeId);
       return r.ok ? r.value : null;
     },
   });
@@ -200,12 +209,28 @@ export function TreinoPage() {
             erros: store.errosNaSessao,
           })}
         </p>
-        <button
-          onClick={() => navigate({ to: "/circulos" })}
-          className="mt-4 rounded-lg bg-[var(--color-acento)] px-6 py-3 font-semibold text-white"
-        >
-          {t("voltarBanco")}
-        </button>
+        <div className="flex flex-col items-center gap-3 mt-4">
+          {proximaUnidade && (
+            <button
+              onClick={() =>
+                navigate({ to: "/treinar/$unidadeId", params: { unidadeId: proximaUnidade.id } })
+              }
+              className="rounded-lg bg-[var(--color-acento)] px-6 py-3 font-semibold text-white hover:opacity-90 transition-opacity"
+            >
+              Próxima unidade → {proximaUnidade.nome}
+            </button>
+          )}
+          <button
+            onClick={() => navigate({ to: "/circulos" })}
+            className={`rounded-lg px-6 py-3 font-semibold transition-colors ${
+              proximaUnidade
+                ? "text-[var(--color-conteudo-secundario)] hover:text-[var(--color-conteudo-primario)]"
+                : "bg-[var(--color-acento)] text-white hover:opacity-90"
+            }`}
+          >
+            {t("voltarBanco")}
+          </button>
+        </div>
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
 import { TacticusLogo } from "@/shared/components/TacticusLogo/TacticusLogo";
 
@@ -17,8 +17,10 @@ const navItems = [
 ] as const;
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const navigate = useNavigate();
   const location = useRouterState({ select: (s) => s.location });
   const configuracoes = usePerfilStore((s) => s.configuracoes);
+  const setPerfilAtivo = usePerfilStore((s) => s.setPerfilAtivo);
   const tema = configuracoes?.tema ?? "escuro";
   const rotasSemNav = ["/", "/perfil/novo"];
 
@@ -32,12 +34,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       {exibirNav && (
         <nav
           aria-label="Navegação principal"
-          className="flex flex-col w-52 border-r border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] shrink-0"
+          className="flex flex-col h-full w-52 border-r border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] shrink-0"
         >
           <div className="px-3 py-3.5 border-b border-[var(--color-borda)]">
             <TacticusLogo className="text-[var(--color-conteudo-primario)]" />
           </div>
-          <ul className="flex flex-col gap-1 p-2 mt-2" role="list">
+          <ul className="flex flex-col gap-1 p-2 mt-2 flex-1" role="list">
             {navItems.map((item) => (
               <li key={item.path} role="listitem">
                 <Link
@@ -56,6 +58,20 @@ export function AppLayout({ children }: AppLayoutProps) {
               </li>
             ))}
           </ul>
+          <div className="p-2 border-t border-[var(--color-borda)]">
+            <button
+              onClick={() => {
+                setPerfilAtivo(null);
+                navigate({ to: "/" });
+              }}
+              className="flex w-full items-center gap-3 px-2 py-2 rounded-lg text-[var(--color-conteudo-terciario)] hover:bg-[var(--color-acento)]/10 hover:text-[var(--color-acento)] transition-colors"
+            >
+              <span className="text-xl shrink-0" aria-hidden="true">
+                ⏏
+              </span>
+              <span className="text-sm font-medium whitespace-nowrap">Trocar perfil</span>
+            </button>
+          </div>
         </nav>
       )}
       <main className="flex-1 overflow-auto" role="main">

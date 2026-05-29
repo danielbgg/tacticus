@@ -111,6 +111,42 @@ export async function buscarUnidadeComModulo(
   }
 }
 
+export interface ProximaUnidade {
+  id: string;
+  nome: string;
+}
+
+export async function buscarProximaUnidade(
+  db: Database,
+  unidadeId: string,
+): Promise<Result<ProximaUnidade | null, string>> {
+  try {
+    // Próxima unidade no mesmo módulo
+    const mesmoModulo = await db.select<Array<{ id: string; nome: string }>>(
+      `SELECT u.id, u.nome FROM unidades u
+       JOIN unidades curr ON curr.id = ?
+       WHERE u.modulo_id = curr.modulo_id AND u.ordem > curr.ordem
+       ORDER BY u.ordem LIMIT 1`,
+      [unidadeId],
+    );
+    if (mesmoModulo[0]) return ok(mesmoModulo[0]);
+
+    // Primeira unidade do próximo módulo (mesma área)
+    const proximoModulo = await db.select<Array<{ id: string; nome: string }>>(
+      `SELECT u.id, u.nome FROM unidades u
+       JOIN modulos m ON m.id = u.modulo_id
+       JOIN unidades curr ON curr.id = ?
+       JOIN modulos cm ON cm.id = curr.modulo_id
+       WHERE m.area_id = cm.area_id AND m.ordem > cm.ordem
+       ORDER BY m.ordem, u.ordem LIMIT 1`,
+      [unidadeId],
+    );
+    return ok(proximoModulo[0] ?? null);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao buscar próxima unidade");
+  }
+}
+
 export async function listarUnidadesModulo(
   db: Database,
   moduloId: string,
