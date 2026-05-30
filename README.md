@@ -90,7 +90,7 @@ Abra o instalador, siga as instruções e pronto — nenhuma dependência adicio
 | Ferramenta | Versão mínima | Como instalar |
 |---|---|---|
 | Node.js | 22 LTS | `nvm install 22` |
-| pnpm | 9 | `npm install -g pnpm@9` |
+| npm ou pnpm | npm 10+ / pnpm 9 | já vem com o Node; pnpm: `npm install -g pnpm@9` |
 | Rust + Cargo | 1.78+ | `curl https://sh.rustup.rs -sSf \| sh` |
 
 **macOS:** `xcode-select --install`
@@ -107,33 +107,29 @@ sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
 ### Clonar e instalar dependências
 
 ```bash
-git clone https://github.com/seu-usuario/tacticus.git
+git clone https://github.com/danielbgg/tacticus.git
 cd tacticus
-pnpm install
+npm install        # ou: pnpm install
 ```
 
 ---
 
 ### Rodar em modo desenvolvimento
 
+> ⚠️ **Importante:** o Tacticus usa SQLite via Tauri. O comando `npm run dev` abre apenas o frontend no browser, sem banco de dados — a tela inicial vai mostrar erro. Para rodar o app completo, use obrigatoriamente o comando abaixo:
+
 ```bash
-pnpm tauri dev
+npm run tauri dev   # ou: pnpm tauri dev
 ```
 
-O app abre com hot reload — alterações no frontend refletem imediatamente sem precisar recompilar o Rust.
-
-Para rodar apenas o frontend (sem o shell Tauri — útil para desenvolvimento de UI):
-```bash
-pnpm dev
-# Acesse: http://localhost:1420
-```
+O app abre como janela nativa com hot reload — alterações no frontend refletem imediatamente sem precisar recompilar o Rust. Na primeira execução, as migrações SQL criam e populam o banco automaticamente (pode levar alguns segundos).
 
 ---
 
 ### Gerar o instalador de produção
 
 ```bash
-pnpm tauri build
+npm run tauri build   # ou: pnpm tauri build
 ```
 
 O instalador é gerado em `src-tauri/target/release/bundle/`:
@@ -149,23 +145,23 @@ O instalador é gerado em `src-tauri/target/release/bundle/`:
 
 ```bash
 # Testes unitários e de integração (Vitest)
-pnpm test
+npm test
 
 # Modo watch
-pnpm test:watch
+npm run test:watch
 
 # Cobertura de testes
-pnpm test:coverage
+npm run test:coverage
 
-# Testes E2E (requer app compilado com pnpm tauri build)
-pnpm test:e2e
+# Testes E2E (requer app compilado)
+npm run test:e2e
 ```
 
 ### Lint e type check
 
 ```bash
-pnpm lint
-pnpm typecheck
+npm run lint
+npm run typecheck
 ```
 
 ### Estrutura do projeto

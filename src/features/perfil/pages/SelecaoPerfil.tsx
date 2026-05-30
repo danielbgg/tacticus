@@ -52,7 +52,17 @@ export function SelecaoPerfil() {
           </div>
         )}
 
-        {isError && <ErrorMessage mensagem={t("erroCarregar")} onTentar={() => refetch()} />}
+        {isError && (
+          <div className="flex flex-col gap-3">
+            <ErrorMessage mensagem={t("erroCarregar")} onTentar={() => refetch()} />
+            <button
+              onClick={() => navigate({ to: "/perfil/novo" })}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-borda)] py-3 text-sm text-[var(--color-conteudo-secundario)] transition-colors hover:border-[var(--color-acento)] hover:text-[var(--color-acento)]"
+            >
+              + {t("criarPerfil")}
+            </button>
+          </div>
+        )}
 
         {!isLoading && !isError && (
           <>
