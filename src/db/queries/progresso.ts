@@ -15,6 +15,7 @@ interface ProgressoRow {
   intervalo_dias: number;
   proxima_revisao: string | null;
   ultima_tentativa: string | null;
+  favoritado: number;
 }
 
 function rowParaProgresso(row: ProgressoRow): ProgressoExercicio {
@@ -29,6 +30,7 @@ function rowParaProgresso(row: ProgressoRow): ProgressoExercicio {
     intervaloDias: row.intervalo_dias,
     proximaRevisao: row.proxima_revisao ? new Date(row.proxima_revisao) : null,
     ultimaTentativa: row.ultima_tentativa ? new Date(row.ultima_tentativa) : null,
+    favoritado: Boolean(row.favoritado),
   };
 }
 
@@ -57,8 +59,8 @@ export async function salvarProgresso(
     await db.execute(
       `INSERT INTO progresso_exercicio
          (perfil_id, exercicio_id, status, acertos_consecutivos, total_acertos,
-          total_tentativas, fator_facilidade, intervalo_dias, proxima_revisao, ultima_tentativa)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          total_tentativas, fator_facilidade, intervalo_dias, proxima_revisao, ultima_tentativa, favoritado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(perfil_id, exercicio_id) DO UPDATE SET
          status = excluded.status,
          acertos_consecutivos = excluded.acertos_consecutivos,
@@ -79,11 +81,37 @@ export async function salvarProgresso(
         progresso.intervaloDias,
         progresso.proximaRevisao?.toISOString() ?? null,
         progresso.ultimaTentativa?.toISOString() ?? null,
+        progresso.favoritado ? 1 : 0,
       ],
     );
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao salvar progresso");
+  }
+}
+
+export async function toggleFavoritado(
+  db: Database,
+  perfilId: PerfilId,
+  exercicioId: ExercicioId,
+): Promise<Result<boolean, string>> {
+  try {
+    await db.execute(
+      `INSERT INTO progresso_exercicio
+         (perfil_id, exercicio_id, status, acertos_consecutivos, total_acertos,
+          total_tentativas, fator_facilidade, intervalo_dias, proxima_revisao, ultima_tentativa, favoritado)
+       VALUES (?, ?, 'nao_visto', 0, 0, 0, 2.5, 0, NULL, NULL, 1)
+       ON CONFLICT(perfil_id, exercicio_id) DO UPDATE SET
+         favoritado = CASE WHEN favoritado = 1 THEN 0 ELSE 1 END`,
+      [perfilId, exercicioId],
+    );
+    const rows = await db.select<{ favoritado: number }[]>(
+      "SELECT favoritado FROM progresso_exercicio WHERE perfil_id = ? AND exercicio_id = ?",
+      [perfilId, exercicioId],
+    );
+    return ok(Boolean(rows[0]?.favoritado));
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao alternar favorito");
   }
 }
 

@@ -12,6 +12,7 @@ import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
 import { EmptyState } from "@/shared/components/EmptyState/EmptyState";
 import { Skeleton } from "@/shared/components/Skeleton/Skeleton";
 import { Button } from "@/shared/components/Button/Button";
+import { Confetti } from "@/shared/components/Confetti/Confetti";
 import { getDb } from "@/db/schema";
 import { buscarUnidadeComModulo, buscarProximaUnidade } from "@/db/queries/estrutura";
 import type { UnidadeId } from "@/shared/types/branded";
@@ -195,41 +196,133 @@ export function TreinoPage() {
   }
 
   if (fasePagina === "concluida") {
+    const total = store.acertosNaSessao + store.errosNaSessao;
+    const precisao = total > 0 ? Math.round((store.acertosNaSessao / total) * 100) : 0;
+    const tempoMedioS =
+      store.acertosNaSessao > 0 ? Math.round(store.tempoTotalMs / store.acertosNaSessao / 1000) : 0;
+    const temMedioStr =
+      tempoMedioS >= 60
+        ? `${Math.floor(tempoMedioS / 60)}m ${tempoMedioS % 60}s`
+        : `${tempoMedioS}s`;
+    const temErros = store.errosSessionIds.length > 0;
+    const boaSessao = precisao >= 70;
+
     return (
-      <div className="flex flex-col items-center justify-center gap-6 py-20 text-center">
-        <span className="text-6xl" aria-hidden="true">
-          🎯
-        </span>
-        <h2 className="text-2xl font-bold text-[var(--color-conteudo-primario)]">
-          {t("sessaoConcluida")}
-        </h2>
-        <p className="text-[var(--color-conteudo-secundario)]">
-          {t("sessaoConcluidaResultado", {
-            acertos: store.acertosNaSessao,
-            erros: store.errosNaSessao,
-          })}
-        </p>
-        <div className="flex flex-col items-center gap-3 mt-4">
-          {proximaUnidade && (
-            <button
-              onClick={() =>
-                navigate({ to: "/treinar/$unidadeId", params: { unidadeId: proximaUnidade.id } })
-              }
-              className="rounded-lg bg-[var(--color-acento)] px-6 py-3 font-semibold text-white hover:opacity-90 transition-opacity"
-            >
-              Próxima unidade → {proximaUnidade.nome}
-            </button>
-          )}
-          <button
-            onClick={() => navigate({ to: "/circulos" })}
-            className={`rounded-lg px-6 py-3 font-semibold transition-colors ${
-              proximaUnidade
-                ? "text-[var(--color-conteudo-secundario)] hover:text-[var(--color-conteudo-primario)]"
-                : "bg-[var(--color-acento)] text-white hover:opacity-90"
-            }`}
+      <div className="relative flex flex-col items-center justify-center min-h-full py-12 px-6">
+        {boaSessao && <Confetti />}
+
+        {/* Card central de conclusão */}
+        <div
+          className="relative w-full max-w-md rounded-xl p-8 text-center z-10"
+          style={{
+            background: "var(--color-superficie-primaria)",
+            border: "1px solid var(--color-borda)",
+            boxShadow: boaSessao ? "var(--shadow-gold)" : "var(--shadow-lg)",
+          }}
+        >
+          {/* Ícone de troféu */}
+          <div
+            className="mx-auto mb-5 w-20 h-20 rounded-full flex items-center justify-center text-4xl"
+            style={{
+              background: boaSessao
+                ? "linear-gradient(135deg, var(--color-acento) 0%, var(--color-acento-hover) 100%)"
+                : "var(--color-superficie-secundaria)",
+              boxShadow: boaSessao ? "var(--shadow-gold)" : "none",
+            }}
           >
-            {t("voltarBanco")}
-          </button>
+            {boaSessao ? "🏆" : "🎯"}
+          </div>
+
+          <h2
+            className="text-2xl font-bold mb-1"
+            style={{ color: "var(--color-conteudo-primario)" }}
+          >
+            {t("sessaoConcluida")}
+          </h2>
+          <p className="text-sm mb-6" style={{ color: "var(--color-conteudo-secundario)" }}>
+            {unidadeInfo?.unidadeNome ?? "Sessão encerrada"}
+          </p>
+
+          {/* Grade de estatísticas */}
+          <div
+            className="grid grid-cols-4 gap-2 mb-6 rounded-lg p-4"
+            style={{ background: "var(--color-superficie-secundaria)" }}
+          >
+            {[
+              {
+                valor: `${precisao}%`,
+                label: "Precisão",
+                cor:
+                  precisao >= 80
+                    ? "var(--color-sucesso)"
+                    : precisao >= 60
+                      ? "var(--color-aviso)"
+                      : "var(--color-erro)",
+              },
+              { valor: store.acertosNaSessao, label: "Acertos", cor: "var(--color-sucesso)" },
+              { valor: store.errosNaSessao, label: "Erros", cor: "var(--color-erro)" },
+              {
+                valor: store.acertosNaSessao > 0 ? temMedioStr : "—",
+                label: "Tempo médio",
+                cor: "var(--color-conteudo-primario)",
+              },
+            ].map(({ valor, label, cor }) => (
+              <div key={label} className="flex flex-col items-center">
+                <span className="text-xl font-bold tabular-nums" style={{ color: cor }}>
+                  {valor}
+                </span>
+                <span
+                  className="text-[10px] mt-0.5"
+                  style={{ color: "var(--color-conteudo-terciario)" }}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Botões de ação */}
+          <div className="flex flex-col gap-2.5">
+            {proximaUnidade && (
+              <button
+                onClick={() =>
+                  navigate({ to: "/treinar/$unidadeId", params: { unidadeId: proximaUnidade.id } })
+                }
+                className="w-full rounded-lg py-3 font-semibold text-sm transition-all hover:-translate-y-px"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--color-acento) 0%, var(--color-acento-hover) 100%)",
+                  color: "#fff",
+                  boxShadow: "var(--shadow-gold)",
+                }}
+              >
+                Próxima unidade · {proximaUnidade.nome}
+              </button>
+            )}
+            {temErros && (
+              <button
+                onClick={() => navigate({ to: "/refazer" })}
+                className="w-full rounded-lg py-3 font-semibold text-sm transition-all hover:-translate-y-px"
+                style={{
+                  border: "1px solid var(--color-erro)",
+                  color: "var(--color-erro)",
+                  background: "rgba(224,82,82,0.06)",
+                }}
+              >
+                Revisar {store.errosSessionIds.length} erro
+                {store.errosSessionIds.length !== 1 ? "s" : ""}
+              </button>
+            )}
+            <button
+              onClick={() => navigate({ to: "/circulos" })}
+              className="w-full rounded-lg py-3 font-semibold text-sm transition-colors"
+              style={{
+                color: "var(--color-conteudo-secundario)",
+              }}
+            >
+              {t("voltarBanco")}
+            </button>
+          </div>
         </div>
       </div>
     );

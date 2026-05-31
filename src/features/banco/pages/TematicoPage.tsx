@@ -18,8 +18,10 @@ export function TematicoPage() {
   const navigate = useNavigate();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
 
+  type FiltroStatus = "todas" | "nao_iniciadas" | "em_progresso" | "concluidas";
   const [areaAtiva, setAreaAtiva] = useState<Area | null>(null);
   const [moduloAtivo, setModuloAtivo] = useState<Modulo | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todas");
 
   const {
     data: todasAreas,
@@ -184,9 +186,33 @@ export function TematicoPage() {
       {/* Lista de unidades do módulo selecionado */}
       {moduloAtivo && (
         <>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-conteudo-secundario)] -mb-3">
-            {moduloAtivo.nome} — Unidades
-          </h2>
+          <div className="flex items-center justify-between -mb-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-conteudo-secundario)]">
+              {moduloAtivo.nome} — Unidades
+            </h2>
+            <div className="flex gap-1">
+              {(
+                [
+                  { valor: "todas", label: "Todas" },
+                  { valor: "nao_iniciadas", label: "Novas" },
+                  { valor: "em_progresso", label: "Em andamento" },
+                  { valor: "concluidas", label: "Concluídas" },
+                ] as { valor: FiltroStatus; label: string }[]
+              ).map((f) => (
+                <button
+                  key={f.valor}
+                  onClick={() => setFiltroStatus(f.valor)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    filtroStatus === f.valor
+                      ? "bg-[var(--color-acento)] text-white"
+                      : "bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:bg-[var(--color-borda)]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {carregandoUnidades ? (
             <div className="flex flex-col gap-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -195,32 +221,46 @@ export function TematicoPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {unidades?.map((unidade) => {
-                const { dominados } = progressoUnidade(unidade.id);
-                const pct =
-                  unidade.totalExercicios > 0
-                    ? Math.round((dominados / unidade.totalExercicios) * 100)
-                    : 0;
-                return (
-                  <Card
-                    key={unidade.id}
-                    interactive
-                    onClick={() =>
-                      navigate({ to: "/treinar/$unidadeId", params: { unidadeId: unidade.id } })
-                    }
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-[var(--color-conteudo-primario)]">
-                        {unidade.nome}
-                      </span>
-                      <span className="text-sm text-[var(--color-conteudo-secundario)]">
-                        {dominados}/{unidade.totalExercicios}
-                      </span>
-                    </div>
-                    <Progress value={pct} label={`Progresso da unidade ${unidade.nome}`} />
-                  </Card>
-                );
-              })}
+              {unidades
+                ?.filter((unidade) => {
+                  const prog = progressoUnidades?.find((p) => p.unidadeId === unidade.id);
+                  const tentados = prog?.tentados ?? 0;
+                  const total = unidade.totalExercicios;
+                  const concluida = tentados >= total && total > 0;
+                  const emProgresso = tentados > 0 && !concluida;
+                  const naoIniciada = tentados === 0;
+                  if (filtroStatus === "todas") return true;
+                  if (filtroStatus === "nao_iniciadas") return naoIniciada;
+                  if (filtroStatus === "em_progresso") return emProgresso;
+                  if (filtroStatus === "concluidas") return concluida;
+                  return true;
+                })
+                .map((unidade) => {
+                  const { dominados } = progressoUnidade(unidade.id);
+                  const pct =
+                    unidade.totalExercicios > 0
+                      ? Math.round((dominados / unidade.totalExercicios) * 100)
+                      : 0;
+                  return (
+                    <Card
+                      key={unidade.id}
+                      interactive
+                      onClick={() =>
+                        navigate({ to: "/treinar/$unidadeId", params: { unidadeId: unidade.id } })
+                      }
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-[var(--color-conteudo-primario)]">
+                          {unidade.nome}
+                        </span>
+                        <span className="text-sm text-[var(--color-conteudo-secundario)]">
+                          {dominados}/{unidade.totalExercicios}
+                        </span>
+                      </div>
+                      <Progress value={pct} label={`Progresso da unidade ${unidade.nome}`} />
+                    </Card>
+                  );
+                })}
             </div>
           )}
         </>

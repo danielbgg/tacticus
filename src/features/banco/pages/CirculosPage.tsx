@@ -25,10 +25,13 @@ const RATING_RANGE: Record<string, string> = {
   "circles-mod-10": "2500+",
 };
 
+type FiltroStatus = "todas" | "nao_iniciadas" | "em_progresso" | "concluidas";
+
 export function CirculosPage() {
   const navigate = useNavigate();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
   const [moduloSelecionado, setModuloSelecionado] = useState<Modulo | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todas");
 
   const {
     data: areas,
@@ -166,9 +169,34 @@ export function CirculosPage() {
       {/* Grid de unidades do círculo selecionado */}
       {moduloSelecionado && (
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-conteudo-secundario)] mb-3">
-            {moduloSelecionado.nome} — selecione uma unidade
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-conteudo-secundario)]">
+              {moduloSelecionado.nome} — selecione uma unidade
+            </h2>
+            {/* Filtro de status */}
+            <div className="flex gap-1">
+              {(
+                [
+                  { valor: "todas", label: "Todas" },
+                  { valor: "nao_iniciadas", label: "Novas" },
+                  { valor: "em_progresso", label: "Em andamento" },
+                  { valor: "concluidas", label: "Concluídas" },
+                ] as { valor: FiltroStatus; label: string }[]
+              ).map((f) => (
+                <button
+                  key={f.valor}
+                  onClick={() => setFiltroStatus(f.valor)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    filtroStatus === f.valor
+                      ? "bg-[var(--color-acento)] text-white"
+                      : "bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:bg-[var(--color-borda)]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {carregandoUnidades ? (
             <div className="grid grid-cols-9 gap-1.5">
               {Array.from({ length: 51 }).map((_, i) => (
@@ -177,35 +205,48 @@ export function CirculosPage() {
             </div>
           ) : (
             <div className="grid grid-cols-9 gap-1.5">
-              {unidades?.map((unidade, idx) => {
-                const prog = progressoUnidades?.find((p) => p.unidadeId === unidade.id);
-                const concluida = prog && prog.tentados >= prog.total && prog.total > 0;
-                const emProgresso = prog && prog.tentados > 0 && !concluida;
-                return (
-                  <button
-                    key={unidade.id}
-                    title={
-                      concluida
-                        ? `${unidade.nome} — Concluída`
-                        : emProgresso
-                          ? `${unidade.nome} — ${prog.tentados}/${prog.total}`
-                          : unidade.nome
-                    }
-                    onClick={() =>
-                      navigate({ to: "/treinar/$unidadeId", params: { unidadeId: unidade.id } })
-                    }
-                    className={`relative h-9 rounded-lg border text-xs font-semibold transition-colors ${
-                      concluida
-                        ? "border-green-500/60 bg-green-500/15 text-green-600 hover:border-green-400 hover:bg-green-500/25"
-                        : emProgresso
-                          ? "border-blue-500/40 bg-blue-500/8 text-blue-400 hover:border-blue-500 hover:bg-blue-500/15"
-                          : "border-[var(--color-borda)] bg-[var(--color-superficie)] text-[var(--color-conteudo-secundario)] hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-400"
-                    }`}
-                  >
-                    {concluida ? "✓" : idx + 1}
-                  </button>
-                );
-              })}
+              {unidades
+                ?.filter((unidade) => {
+                  const prog = progressoUnidades?.find((p) => p.unidadeId === unidade.id);
+                  const concluida = prog && prog.tentados >= prog.total && prog.total > 0;
+                  const emProgresso = prog && prog.tentados > 0 && !concluida;
+                  const naoIniciada = !prog || prog.tentados === 0;
+                  if (filtroStatus === "todas") return true;
+                  if (filtroStatus === "nao_iniciadas") return naoIniciada;
+                  if (filtroStatus === "em_progresso") return emProgresso;
+                  if (filtroStatus === "concluidas") return concluida;
+                  return true;
+                })
+                .map((unidade, idx) => {
+                  const prog = progressoUnidades?.find((p) => p.unidadeId === unidade.id);
+                  const concluida = prog && prog.tentados >= prog.total && prog.total > 0;
+                  const emProgresso = prog && prog.tentados > 0 && !concluida;
+                  const idxGlobal = unidades?.indexOf(unidade) ?? idx;
+                  return (
+                    <button
+                      key={unidade.id}
+                      title={
+                        concluida
+                          ? `${unidade.nome} — Concluída`
+                          : emProgresso
+                            ? `${unidade.nome} — ${prog.tentados}/${prog.total}`
+                            : unidade.nome
+                      }
+                      onClick={() =>
+                        navigate({ to: "/treinar/$unidadeId", params: { unidadeId: unidade.id } })
+                      }
+                      className={`relative h-9 rounded-lg border text-xs font-semibold transition-colors ${
+                        concluida
+                          ? "border-green-500/60 bg-green-500/15 text-green-600 hover:border-green-400 hover:bg-green-500/25"
+                          : emProgresso
+                            ? "border-blue-500/40 bg-blue-500/8 text-blue-400 hover:border-blue-500 hover:bg-blue-500/15"
+                            : "border-[var(--color-borda)] bg-[var(--color-superficie)] text-[var(--color-conteudo-secundario)] hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-400"
+                      }`}
+                    >
+                      {concluida ? "✓" : idxGlobal + 1}
+                    </button>
+                  );
+                })}
             </div>
           )}
         </div>

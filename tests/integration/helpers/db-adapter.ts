@@ -31,6 +31,7 @@ const SCHEMA_MIGRATIONS = [
   "0002_add_conquistas.sql",
   "0005_sessoes_pausadas.sql",
   "0008_sessao_unidade.sql",
+  "0012_elo_favoritos_meta.sql",
 ];
 
 export function criarDbMemoria(seed?: (db: Database) => void): Database {

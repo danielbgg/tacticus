@@ -12,6 +12,7 @@ import {
   type SessaoPausada,
 } from "@/db/queries/sessoesPausadas";
 import { calcularProximaRevisao, inicializarProgresso } from "@/shared/lib/sm2";
+import { atualizarEloTatico } from "@/db/queries/perfis";
 import { useSessaoStore } from "@/features/exercicio/store/useSessaoStore";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
 import type { Exercicio } from "@/shared/types/domain";
@@ -159,6 +160,17 @@ export function useSessaoTreino() {
       );
 
       await salvarProgresso(db as never, novoProgresso);
+
+      // Atualiza ELO se o exercício tem rating
+      if (ex.rating != null && perfilAtivoId) {
+        void atualizarEloTatico(
+          db as never,
+          perfilAtivoId,
+          ex.rating,
+          acertou,
+          Math.min(store.dicasUsadas, 3) as 0 | 1 | 2 | 3,
+        );
+      }
 
       if (acertou) {
         store.registrarAcerto(tempoMs);

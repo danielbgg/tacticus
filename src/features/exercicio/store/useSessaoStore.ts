@@ -21,6 +21,7 @@ interface EstadoSessao {
   totalExerciciosUnidade: number;
   jaFeitosAnteriores: number;
   tempoTotalMs: number;
+  errosSessionIds: string[];
 
   iniciarSessao: (
     sessaoId: SessaoId,
@@ -56,6 +57,7 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
   totalExerciciosUnidade: 0,
   jaFeitosAnteriores: 0,
   tempoTotalMs: 0,
+  errosSessionIds: [],
 
   iniciarSessao: (sessaoId, modo, fila, totalUnidade) => {
     const total = totalUnidade ?? fila.length;
@@ -76,6 +78,7 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
       totalExerciciosUnidade: total,
       jaFeitosAnteriores: total - fila.length,
       tempoTotalMs: 0,
+      errosSessionIds: [],
     });
   },
 
@@ -108,6 +111,10 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
     set((s) => ({
       fase: "erro",
       errosNaSessao: s.errosNaSessao + 1,
+      errosSessionIds:
+        s.exercicioAtual && !s.errosSessionIds.includes(s.exercicioAtual.id)
+          ? [...s.errosSessionIds, s.exercicioAtual.id]
+          : s.errosSessionIds,
     })),
 
   usarDica: () => set((s) => ({ dicasUsadas: s.dicasUsadas + 1, fase: "dica" })),
@@ -115,7 +122,7 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
   resetarParaTentando: () => set({ fase: "tentando", dicasUsadas: 0 }),
 
   encerrarSessao: () =>
-    set({
+    set((s) => ({
       sessaoId: null,
       fila: [],
       exercicioAtual: null,
@@ -129,7 +136,9 @@ export const useSessaoStore = create<EstadoSessao>((set, get) => ({
       totalExerciciosUnidade: 0,
       jaFeitosAnteriores: 0,
       tempoTotalMs: 0,
-    }),
+      // errosSessionIds é preservado para RefazerErrosPage — limpo em iniciarSessao
+      errosSessionIds: s.errosSessionIds,
+    })),
 
   setFase: (fase) => set({ fase }),
 

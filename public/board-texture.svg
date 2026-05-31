@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640">
+  <!--
+    Textura de madeira com blend-mode: multiply.
+    multiply: result = base × texture
+    - texture=1.0 (branco): nenhuma mudança na cor base
+    - texture=0.80: levemente mais escuro (fibras de grão)
+    - texture=0.65: escurecimento notável (fibras principais)
+
+    slope=0.28, intercept=0.72 → range [0.72, 1.0]
+    Quase tudo é claro/branco; o grão aparece como escurecimentos naturais.
+    Isto preserva as cores base (ricas, saturadas) e adiciona profundidade.
+
+    baseFrequency="0.06 0.018": ~5 bandas largas por casa, curva suave
+    numOctaves=8: detalhe orgânico em múltiplas escalas
+  -->
+  <filter id="wood" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence
+      type="fractalNoise"
+      baseFrequency="0.06 0.018"
+      numOctaves="8"
+      seed="42"
+      result="noise"
+    />
+    <feColorMatrix type="saturate" values="0" in="noise" result="gray"/>
+    <feComponentTransfer in="gray">
+      <!-- Mapeia ruído para [0.72, 1.0] — quase branco, grão como escurecimento -->
+      <feFuncR type="linear" slope="0.28" intercept="0.72"/>
+      <feFuncG type="linear" slope="0.28" intercept="0.72"/>
+      <feFuncB type="linear" slope="0.28" intercept="0.72"/>
+    </feComponentTransfer>
+  </filter>
+  <rect width="640" height="640" fill="white" filter="url(#wood)"/>
+</svg>

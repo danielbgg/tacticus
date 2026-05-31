@@ -18,6 +18,7 @@ function makeProgresso(id: string, acertos: number, tentativas: number): Progres
     intervaloDias: 0,
     proximaRevisao: null,
     ultimaTentativa: new Date(),
+    favoritado: false,
   };
 }
 

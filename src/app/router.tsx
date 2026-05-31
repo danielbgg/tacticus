@@ -86,6 +86,16 @@ const perfilNovoRoute = createRoute({
   ),
 });
 
+const refazerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/refazer",
+  component: lazy(() =>
+    import("../features/exercicio/pages/RefazerErrosPage").then((m) => ({
+      default: m.RefazerErrosPage,
+    })),
+  ),
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   homeRoute,
@@ -96,6 +106,7 @@ const routeTree = rootRoute.addChildren([
   tematicoRoute,
   configuracoesRoute,
   perfilNovoRoute,
+  refazerRoute,
 ]);
 
 export const router = createRouter({ routeTree });

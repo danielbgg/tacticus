@@ -142,3 +142,20 @@ export async function buscarExercicio(
     return err(e instanceof Error ? e.message : "Erro ao buscar exercício");
   }
 }
+
+export async function buscarExerciciosPorIds(
+  db: Database,
+  ids: string[],
+): Promise<Result<Exercicio[], string>> {
+  if (ids.length === 0) return ok([]);
+  try {
+    const placeholders = ids.map(() => "?").join(", ");
+    const rows = await db.select<JoinRow[]>(
+      `${JOIN_SQL} WHERE e.id IN (${placeholders}) ORDER BY e.ordem`,
+      ids,
+    );
+    return ok(rows.map(joinRowParaExercicio));
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao buscar exercícios por ids");
+  }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/shared/components/Card/Card";
@@ -8,7 +8,7 @@ import { Progress } from "@/shared/components/Progress/Progress";
 import { useSessaoStore } from "@/features/exercicio/store/useSessaoStore";
 import { usePerfilStore } from "@/features/perfil/store/usePerfilStore";
 import { getDb } from "@/db/schema";
-import { buscarProgressoExercicio } from "@/db/queries/progresso";
+import { buscarProgressoExercicio, toggleFavoritado } from "@/db/queries/progresso";
 
 interface PainelExercicioProps {
   onUsarDica: () => void;
@@ -93,6 +93,7 @@ export function PainelExercicio({
   moduloNome,
 }: PainelExercicioProps) {
   const { t } = useTranslation("sessao");
+  const queryClient = useQueryClient();
   const {
     exercicioAtual,
     fase,
@@ -111,15 +112,22 @@ export function PainelExercicio({
     tempoTotalMs,
   } = useSessaoStore();
   const perfilAtivoId = usePerfilStore((s) => s.perfilAtivoId);
+  const configuracoes = usePerfilStore((s) => s.configuracoes);
+  const modoCronometrado = configuracoes?.modoCronometrado ?? false;
+  const tempoCronometroS = configuracoes?.tempoCronometroS ?? 60;
 
   const [tempoSessao, setTempoSessao] = useState("00:00");
   const [tempoExercicio, setTempoExercicio] = useState("00:00");
+  const [colapsado, setColapsado] = useState(false);
+  const [cronometro, setCronometro] = useState(tempoCronometroS);
+  const [favoritadoLocal, setFavoritadoLocal] = useState(false);
   const exercicioIniciadoEm = useRef<Date>(new Date());
 
   useEffect(() => {
     exercicioIniciadoEm.current = new Date();
     setTempoExercicio("00:00");
-  }, [exercicioAtual?.id]);
+    setCronometro(tempoCronometroS);
+  }, [exercicioAtual?.id, tempoCronometroS]);
 
   useEffect(() => {
     if (fase === "acerto" || fase === "aguardando" || pausado) return;
@@ -132,6 +140,25 @@ export function PainelExercicio({
     return () => clearInterval(id);
   }, [iniciadaEm, fase, pausado]);
 
+  // Cronômetro regressivo
+  useEffect(() => {
+    if (!modoCronometrado) return;
+    if (fase !== "tentando" && fase !== "dica") return;
+    if (pausado) return;
+
+    const id = setInterval(() => {
+      setCronometro((c) => {
+        if (c <= 1) {
+          clearInterval(id);
+          onDesistir();
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [modoCronometrado, fase, pausado, exercicioAtual?.id]);
+
   const { data: progressoExercicio } = useQuery({
     queryKey: ["progresso-exercicio", perfilAtivoId, exercicioAtual?.id],
     enabled: !!perfilAtivoId && !!exercicioAtual,
@@ -143,230 +170,317 @@ export function PainelExercicio({
     },
   });
 
+  // Sincroniza estado local de favorito
+  useEffect(() => {
+    setFavoritadoLocal(progressoExercicio?.favoritado ?? false);
+  }, [progressoExercicio?.favoritado]);
+
+  const toggleFavMutation = useMutation({
+    mutationFn: async () => {
+      if (!perfilAtivoId || !exercicioAtual) return false;
+      const db = await getDb();
+      const r = await toggleFavoritado(db as never, perfilAtivoId, exercicioAtual.id);
+      return r.ok ? r.value : !favoritadoLocal;
+    },
+    onMutate: () => {
+      setFavoritadoLocal((v) => !v);
+    },
+    onSuccess: (novoValor) => {
+      setFavoritadoLocal(novoValor);
+      void queryClient.invalidateQueries({
+        queryKey: ["progresso-exercicio", perfilAtivoId, exercicioAtual?.id],
+      });
+    },
+    onError: () => {
+      setFavoritadoLocal((v) => !v);
+    },
+  });
+
   if (!exercicioAtual) return null;
 
   const vezesResolvido = progressoExercicio?.totalAcertos ?? 0;
-  const rating = exercicioAtual.rating;
   const totalUnidade = totalExerciciosUnidade;
-  // posição global: exercícios de sessões anteriores + progresso atual
   const posicaoGlobal = jaFeitosAnteriores + indiceAtual;
   const progressoGlobal = totalUnidade > 0 ? (posicaoGlobal / totalUnidade) * 100 : 0;
   const concluidosUnicos = jaFeitosAnteriores + exerciciosConcluidos.length;
 
+  function statusGridItem(i: number): { concluido: boolean; atual: boolean } {
+    const deSessaoAnterior = i < jaFeitosAnteriores;
+    const iNaSessao = i - jaFeitosAnteriores;
+    const concluido =
+      deSessaoAnterior ||
+      (iNaSessao >= 0 &&
+        (iNaSessao < indiceAtual || exerciciosConcluidos.includes(fila[iNaSessao]?.id ?? "")));
+    const atual = i === posicaoGlobal && fase !== "acerto";
+    return { concluido, atual };
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      {/* ── ZONA DE CONTEXTO ── compacta, estática */}
+      {/* ── ZONA DE CONTEXTO ── */}
       <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-superficie)] px-4 py-3 space-y-3">
-        {/* Breadcrumb: módulo › unidade */}
-        {(moduloNome || unidadeNome) && (
-          <div>
-            <p className="text-xs uppercase tracking-wider text-[var(--color-conteudo-terciario)] mb-0.5">
-              Método PCT — Círculos
-            </p>
-            <div className="flex items-center gap-1.5 text-sm">
-              {moduloNome && (
-                <span className="font-semibold text-[var(--color-conteudo-primario)]">
-                  {moduloNome}
-                </span>
-              )}
-              {moduloNome && unidadeNome && (
-                <span className="text-[var(--color-conteudo-terciario)]">›</span>
-              )}
-              {unidadeNome && (
-                <span className="text-[var(--color-conteudo-secundario)]">{unidadeNome}</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Grade de progresso da unidade */}
-        {totalUnidade > 0 && (
-          <div>
-            <div className="flex flex-wrap gap-1">
-              {Array.from({ length: Math.min(totalUnidade, 30) }).map((_, i) => {
-                // exercícios anteriores à sessão atual são sempre verdes
-                const deSessaoAnterior = i < jaFeitosAnteriores;
-                // dentro da sessão atual: exercícios antes do cursor ou em exerciciosConcluidos
-                const iNaSessao = i - jaFeitosAnteriores;
-                const concluido =
-                  deSessaoAnterior ||
-                  (iNaSessao >= 0 &&
-                    (iNaSessao < indiceAtual ||
-                      exerciciosConcluidos.includes(fila[iNaSessao]?.id ?? "")));
-                const atual = i === posicaoGlobal && fase !== "acerto";
-                return (
-                  <div
-                    key={i}
-                    className={`h-3.5 w-3.5 rounded-sm transition-colors ${
-                      concluido
-                        ? "bg-[var(--color-sucesso)]"
-                        : atual
-                          ? "bg-[var(--color-acento)] animate-pulse"
-                          : "bg-[var(--color-superficie-secundaria)] border border-[var(--color-borda)]"
-                    }`}
-                  />
-                );
-              })}
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-conteudo-terciario)]">
-              {concluidosUnicos}/{totalUnidade} concluídos
-            </p>
-          </div>
-        )}
-
-        {/* Barra de progresso + ✓/✗ numa linha */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[var(--color-conteudo-terciario)]">
-              {t("exercicio", { atual: posicaoGlobal + 1, total: totalUnidade })}
-            </span>
-            <span className="flex gap-3">
-              <span className="font-medium text-[var(--color-sucesso)]">✓ {acertosNaSessao}</span>
-              <span className="font-medium text-[var(--color-erro)]">✗ {errosNaSessao}</span>
-            </span>
-          </div>
-          <Progress value={progressoGlobal} label="Progresso da sessão" />
-        </div>
-
-        {/* Timers + pausa em 1 linha compacta */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-[var(--color-conteudo-secundario)] font-mono tabular-nums">
-            <span title="Tempo de sessão">{tempoSessao}</span>
-            <span className="text-[var(--color-borda)] select-none">|</span>
-            <span title="Tempo no exercício">{tempoExercicio}</span>
-            <span className="text-[var(--color-borda)] select-none">|</span>
-            <span className="text-[var(--color-conteudo-terciario)]" title="Tempo médio por acerto">
-              {formatarTempoMedio(tempoTotalMs, acertosNaSessao)}
-            </span>
+        {/* Header com breadcrumb e botão colapsar */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {(moduloNome || unidadeNome) && (
+              <div>
+                <p className="text-xs uppercase tracking-wider text-[var(--color-conteudo-terciario)] mb-0.5">
+                  Método PCT — Círculos
+                </p>
+                <div className="flex items-center gap-1.5 text-sm">
+                  {moduloNome && (
+                    <span className="font-semibold text-[var(--color-conteudo-primario)]">
+                      {moduloNome}
+                    </span>
+                  )}
+                  {moduloNome && unidadeNome && (
+                    <span className="text-[var(--color-conteudo-terciario)]">›</span>
+                  )}
+                  {unidadeNome && (
+                    <span className="text-[var(--color-conteudo-secundario)]">{unidadeNome}</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <button
-            onClick={pausado ? retomar : pausar}
-            className={`flex items-center justify-center h-7 w-7 rounded-md border text-xs transition-colors ${
-              pausado
-                ? "border-[var(--color-acento)] bg-[var(--color-acento)]/10 text-[var(--color-acento)] hover:bg-[var(--color-acento)]/20"
-                : "border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:border-[var(--color-acento)] hover:text-[var(--color-acento)]"
-            }`}
-            title={pausado ? "Retomar" : "Pausar"}
-            aria-label={pausado ? "Retomar sessão" : "Pausar sessão"}
+            onClick={() => setColapsado((v) => !v)}
+            title={colapsado ? "Expandir painel" : "Colapsar painel"}
+            aria-label={colapsado ? "Expandir painel" : "Colapsar painel"}
+            className="shrink-0 flex items-center justify-center h-6 w-6 rounded-md border border-[var(--color-borda)] text-[var(--color-conteudo-terciario)] hover:border-[var(--color-acento)] hover:text-[var(--color-acento)] transition-colors text-xs"
           >
-            {pausado ? "▶" : "⏸"}
+            {colapsado ? "▼" : "▲"}
           </button>
         </div>
-      </div>
 
-      {/* ── ZONA DE AÇÃO ── proeminente, muda conforme a fase */}
-      <AnimatePresence mode="wait">
-        {fase === "acerto" && (
-          <motion.div
-            key="acerto"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            <Card className="border-[var(--color-sucesso)]/30 bg-[var(--color-sucesso)]/5">
-              <p className="text-xl font-semibold text-[var(--color-sucesso)]">
-                {mensagemAleatoria(MENSAGENS_ACERTO)}
-              </p>
-
-              {exercicioAtual.temas && exercicioAtual.temas.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {exercicioAtual.temas.map((tema) => (
-                    <span
-                      key={tema}
-                      className="rounded-full bg-[var(--color-sucesso)]/10 border border-[var(--color-sucesso)]/20 px-2 py-0.5 text-xs text-[var(--color-sucesso)]"
-                    >
-                      {traduzirTema(tema)}
-                    </span>
-                  ))}
+        {!colapsado && (
+          <>
+            {/* Grade de progresso da unidade */}
+            {totalUnidade > 0 && (
+              <div>
+                <div className="flex flex-wrap gap-1">
+                  {Array.from({ length: Math.min(totalUnidade, 30) }).map((_, i) => {
+                    const { concluido, atual } = statusGridItem(i);
+                    const label = concluido
+                      ? `Exercício ${i + 1} — Concluído`
+                      : atual
+                        ? `Exercício ${i + 1} — Atual`
+                        : `Exercício ${i + 1} — Pendente`;
+                    return (
+                      <div
+                        key={i}
+                        title={label}
+                        aria-label={label}
+                        className={`h-3.5 w-3.5 rounded-sm transition-colors cursor-default ${
+                          concluido
+                            ? "bg-[var(--color-sucesso)]"
+                            : atual
+                              ? "bg-[var(--color-acento)] animate-pulse"
+                              : "bg-[var(--color-superficie-secundaria)] border border-[var(--color-borda)]"
+                        }`}
+                      />
+                    );
+                  })}
                 </div>
-              )}
-
-              <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
-                <span className="font-mono">#{exercicioAtual.id}</span>
-                {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
+                <p className="mt-1 text-xs text-[var(--color-conteudo-terciario)]">
+                  {concluidosUnicos}/{totalUnidade} concluídos
+                </p>
               </div>
+            )}
 
-              <Button onClick={onProximo} variant="primary" className="mt-4 w-full">
-                {t("proximo")}
-              </Button>
-            </Card>
-          </motion.div>
-        )}
-
-        {fase === "erro" && (
-          <motion.div
-            key="erro"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            <Card className="border-[var(--color-erro)]/30 bg-[var(--color-erro)]/5">
-              <p className="text-xl font-semibold text-[var(--color-erro)]">
-                {mensagemAleatoria(MENSAGENS_ERRO)}
-              </p>
-              <div className="mt-4 flex gap-2">
-                <Button onClick={onTentarNovamente} variant="secondary" className="flex-1">
-                  {t("tentar")}
-                </Button>
-                <Button onClick={onProximo} variant="ghost" className="flex-1">
-                  {t("proximo")}
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-
-        {(fase === "tentando" || fase === "dica") && (
-          <motion.div key="tentando" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Card>
-              <p className="text-sm font-semibold text-[var(--color-conteudo-primario)]">
-                {t("encontreMelhorLance")}
-              </p>
-
-              {exercicioAtual.partida && (
-                <div className="mt-2 rounded-md bg-[var(--color-superficie-secundaria)] p-3 text-xs text-[var(--color-conteudo-secundario)]">
-                  <p className="font-medium">
-                    {exercicioAtual.partida.brancas} vs {exercicioAtual.partida.negras}
-                  </p>
-                  {exercicioAtual.partida.evento && (
-                    <p className="mt-0.5">
-                      {exercicioAtual.partida.evento}
-                      {exercicioAtual.partida.ano ? `, ${exercicioAtual.partida.ano}` : ""}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
-                <span className="font-mono">#{exercicioAtual.id}</span>
-                <span className="flex items-center gap-2">
-                  {rating != null && (
-                    <span className="rounded-full bg-[var(--color-superficie-secundaria)] px-2 py-0.5 font-semibold text-[var(--color-conteudo-secundario)]">
-                      ★ {rating}
-                    </span>
-                  )}
-                  {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
+            {/* Barra de progresso + ✓/✗ */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[var(--color-conteudo-terciario)]">
+                  {t("exercicio", { atual: posicaoGlobal + 1, total: totalUnidade })}
+                </span>
+                <span className="flex gap-3">
+                  <span className="font-medium text-[var(--color-sucesso)]">
+                    ✓ {acertosNaSessao}
+                  </span>
+                  <span className="font-medium text-[var(--color-erro)]">✗ {errosNaSessao}</span>
                 </span>
               </div>
+              <Progress value={progressoGlobal} label="Progresso da sessão" />
+            </div>
 
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={onUsarDica}
-                  disabled={dicasUsadas >= 3}
-                  className="flex-1"
+            {/* Timers + pausa */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-conteudo-secundario)] font-mono tabular-nums">
+                <span title="Tempo de sessão">{tempoSessao}</span>
+                <span className="text-[var(--color-borda)] select-none">|</span>
+                <span title="Tempo no exercício">{tempoExercicio}</span>
+                <span className="text-[var(--color-borda)] select-none">|</span>
+                <span
+                  className="text-[var(--color-conteudo-terciario)]"
+                  title="Tempo médio por acerto"
                 >
-                  {t("dica")} {dicasUsadas > 0 ? `(${dicasUsadas}/3)` : ""}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={onDesistir} className="flex-1">
-                  {t("desistir")}
-                </Button>
+                  {formatarTempoMedio(tempoTotalMs, acertosNaSessao)}
+                </span>
               </div>
-            </Card>
-          </motion.div>
+              <button
+                onClick={pausado ? retomar : pausar}
+                className={`flex items-center justify-center h-7 w-7 rounded-md border text-xs transition-colors ${
+                  pausado
+                    ? "border-[var(--color-acento)] bg-[var(--color-acento)]/10 text-[var(--color-acento)] hover:bg-[var(--color-acento)]/20"
+                    : "border-[var(--color-borda)] bg-[var(--color-superficie-secundaria)] text-[var(--color-conteudo-secundario)] hover:border-[var(--color-acento)] hover:text-[var(--color-acento)]"
+                }`}
+                title={pausado ? "Retomar" : "Pausar"}
+                aria-label={pausado ? "Retomar sessão" : "Pausar sessão"}
+              >
+                {pausado ? "▶" : "⏸"}
+              </button>
+            </div>
+          </>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* ── ZONA DE AÇÃO ── só quando não colapsado */}
+      {!colapsado && (
+        <AnimatePresence mode="wait">
+          {fase === "acerto" && (
+            <motion.div
+              key="acerto"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <Card className="border-[var(--color-sucesso)]/30 bg-[var(--color-sucesso)]/5">
+                <p className="text-xl font-semibold text-[var(--color-sucesso)]">
+                  {mensagemAleatoria(MENSAGENS_ACERTO)}
+                </p>
+
+                {/* Tema revelado só no acerto */}
+                {exercicioAtual.temas && exercicioAtual.temas.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {exercicioAtual.temas.map((tema) => (
+                      <span
+                        key={tema}
+                        className="rounded-full bg-[var(--color-sucesso)]/10 border border-[var(--color-sucesso)]/20 px-2 py-0.5 text-xs text-[var(--color-sucesso)]"
+                      >
+                        {traduzirTema(tema)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
+                  <span className="font-mono">#{exercicioAtual.id}</span>
+                  <span className="flex items-center gap-2">
+                    {exercicioAtual.rating != null && (
+                      <span className="rounded-full bg-[var(--color-superficie-secundaria)] px-2 py-0.5 font-semibold text-[var(--color-conteudo-secundario)]">
+                        ★ {exercicioAtual.rating}
+                      </span>
+                    )}
+                    {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
+                  </span>
+                </div>
+
+                <Button onClick={onProximo} variant="primary" className="mt-4 w-full">
+                  {t("proximo")}
+                </Button>
+              </Card>
+            </motion.div>
+          )}
+
+          {fase === "erro" && (
+            <motion.div
+              key="erro"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <Card className="border-[var(--color-erro)]/30 bg-[var(--color-erro)]/5">
+                <p className="text-xl font-semibold text-[var(--color-erro)]">
+                  {mensagemAleatoria(MENSAGENS_ERRO)}
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <Button onClick={onTentarNovamente} variant="secondary" className="flex-1">
+                    {t("tentar")}
+                  </Button>
+                  <Button onClick={onProximo} variant="ghost" className="flex-1">
+                    {t("proximo")}
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {(fase === "tentando" || fase === "dica") && (
+            <motion.div key="tentando" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <Card>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-[var(--color-conteudo-primario)]">
+                    {t("encontreMelhorLance")}
+                  </p>
+                  {/* Botão favorito */}
+                  <button
+                    onClick={() => toggleFavMutation.mutate()}
+                    title={favoritadoLocal ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    aria-label={
+                      favoritadoLocal ? "Remover dos favoritos" : "Adicionar aos favoritos"
+                    }
+                    className="shrink-0 text-lg leading-none transition-transform hover:scale-110"
+                  >
+                    {favoritadoLocal ? "★" : "☆"}
+                  </button>
+                </div>
+
+                {exercicioAtual.partida && (
+                  <div className="mt-2 rounded-md bg-[var(--color-superficie-secundaria)] p-3 text-xs text-[var(--color-conteudo-secundario)]">
+                    <p className="font-medium">
+                      {exercicioAtual.partida.brancas} vs {exercicioAtual.partida.negras}
+                    </p>
+                    {exercicioAtual.partida.evento && (
+                      <p className="mt-0.5">
+                        {exercicioAtual.partida.evento}
+                        {exercicioAtual.partida.ano ? `, ${exercicioAtual.partida.ano}` : ""}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-conteudo-terciario)]">
+                  <span className="font-mono">#{exercicioAtual.id}</span>
+                  {vezesResolvido > 0 && <span>Resolvido {vezesResolvido}×</span>}
+                </div>
+
+                {/* Cronômetro regressivo */}
+                {modoCronometrado && (
+                  <div
+                    className={`mt-3 text-center text-3xl font-bold font-mono tabular-nums transition-colors ${
+                      cronometro <= 10
+                        ? "text-[var(--color-erro)] animate-pulse"
+                        : cronometro <= 20
+                          ? "text-[var(--color-aviso)]"
+                          : "text-[var(--color-conteudo-secundario)]"
+                    }`}
+                    aria-live="polite"
+                    aria-label={`${cronometro} segundos restantes`}
+                  >
+                    {cronometro}s
+                  </div>
+                )}
+
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onUsarDica}
+                    disabled={dicasUsadas >= 3}
+                    className="flex-1"
+                  >
+                    {t("dica")} {dicasUsadas > 0 ? `(${dicasUsadas}/3)` : ""}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={onDesistir} className="flex-1">
+                    {t("desistir")}
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 }

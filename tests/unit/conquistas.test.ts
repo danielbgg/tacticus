@@ -20,6 +20,7 @@ function makeP(
     intervaloDias: 0,
     proximaRevisao: null,
     ultimaTentativa: new Date(),
+    favoritado: false,
   };
 }
 

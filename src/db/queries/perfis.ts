@@ -3,6 +3,7 @@ import type { Result } from "@/shared/lib/result";
 import { ok, err } from "@/shared/lib/result";
 import type { Perfil, NivelJogador } from "@/shared/types/domain";
 import { toPerfilId, type PerfilId } from "@/shared/types/branded";
+import { calcularDeltaElo } from "@/shared/lib/elo";
 
 interface CriarPerfilInput {
   nome: string;
@@ -17,6 +18,7 @@ interface PerfilRow {
   nivel: NivelJogador;
   avatar: string;
   acertos_para_dominar: number;
+  elo_tatico: number;
   criado_em: string;
   ultimo_acesso: string;
 }
@@ -28,6 +30,7 @@ function rowParaPerfil(row: PerfilRow): Perfil {
     nivel: row.nivel,
     avatar: row.avatar,
     acertosParaDominar: row.acertos_para_dominar,
+    eloTatico: row.elo_tatico ?? 1200,
     criadoEm: new Date(row.criado_em),
     ultimoAcesso: new Date(row.ultimo_acesso),
   };
@@ -110,5 +113,33 @@ export async function renomearPerfil(
     return ok(undefined);
   } catch (e) {
     return err(e instanceof Error ? e.message : "Erro ao renomear perfil");
+  }
+}
+
+export async function atualizarEloTatico(
+  db: Database,
+  id: PerfilId,
+  ratingPuzzle: number,
+  acertou: boolean,
+  dicasUsadas: 0 | 1 | 2 | 3,
+): Promise<Result<number, string>> {
+  try {
+    const rows = await db.select<{ elo_tatico: number }[]>(
+      "SELECT elo_tatico FROM perfis WHERE id = ?",
+      [id],
+    );
+    const eloAtual = rows[0]?.elo_tatico ?? 1200;
+    const delta = calcularDeltaElo(eloAtual, ratingPuzzle, acertou, dicasUsadas);
+    await db.execute(
+      "UPDATE perfis SET elo_tatico = MAX(400, MIN(3000, elo_tatico + ?)) WHERE id = ?",
+      [Math.round(delta), id],
+    );
+    const updated = await db.select<{ elo_tatico: number }[]>(
+      "SELECT elo_tatico FROM perfis WHERE id = ?",
+      [id],
+    );
+    return ok(updated[0]?.elo_tatico ?? eloAtual);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "Erro ao atualizar ELO");
   }
 }

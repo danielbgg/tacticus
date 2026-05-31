@@ -3,49 +3,62 @@
 @layer base {
   :root {
     /* tema claro (padrão) */
-    --color-fundo: #f8f9fa;
+    --color-fundo: #f4f4f6;
     --color-superficie-primaria: #ffffff;
-    --color-superficie-secundaria: #f1f3f5;
-    --color-borda: #dee2e6;
-    --color-conteudo-primario: #212529;
-    --color-conteudo-secundario: #495057;
-    --color-conteudo-terciario: #868e96;
-    --color-acento: #2b6cb0;
-    --color-acento-hover: #1a4e8a;
+    --color-superficie-secundaria: #ebebef;
+    --color-borda: #d4d4dc;
+    --color-conteudo-primario: #18181c;
+    --color-conteudo-secundario: #4a4a5a;
+    --color-conteudo-terciario: #8a8a9a;
+    --color-acento: #a07a10;
+    --color-acento-hover: #7d5f0c;
     --color-erro: #c0392b;
-    --color-sucesso: #27ae60;
-    --color-aviso: #d97706;
-    --raio-card: 12px;
+    --color-sucesso: #1e8c4e;
+    --color-aviso: #c47a00;
+    --raio-card: 10px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.07);
+    --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.14), 0 4px 10px rgba(0, 0, 0, 0.08);
+    --shadow-gold: 0 0 0 1px rgba(201, 162, 39, 0.35), 0 4px 16px rgba(201, 162, 39, 0.15);
   }
 
+  /* Dark — confortável, como Chess.com/lichess (não cave-dark) */
   [data-tema="escuro"] {
-    --color-fundo: #0d1117;
-    --color-superficie-primaria: #161b22;
-    --color-superficie-secundaria: #21262d;
-    --color-borda: #30363d;
-    --color-conteudo-primario: #e6edf3;
-    --color-conteudo-secundario: #8b949e;
-    --color-conteudo-terciario: #6e7681;
-    --color-acento: #58a6ff;
-    --color-acento-hover: #388bfd;
-    --color-erro: #f85149;
-    --color-sucesso: #3fb950;
-    --color-aviso: #f59e0b;
+    --color-fundo: #1e1e24;
+    --color-superficie-primaria: #2a2a32;
+    --color-superficie-secundaria: #35353f;
+    --color-borda: #48484e;
+    --color-conteudo-primario: #eeeef4;
+    --color-conteudo-secundario: #9898aa;
+    --color-conteudo-terciario: #60606e;
+    --color-acento: #c9a227;
+    --color-acento-hover: #d4b040;
+    --color-erro: #e05252;
+    --color-sucesso: #3aaa6e;
+    --color-aviso: #d4950a;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-gold: 0 0 0 1px rgba(201, 162, 39, 0.4), 0 4px 20px rgba(201, 162, 39, 0.2);
   }
 
   [data-tema="madeira"] {
-    --color-fundo: #2d1b0e;
-    --color-superficie-primaria: #3d2510;
-    --color-superficie-secundaria: #4a2d14;
-    --color-borda: #6b3e1a;
+    --color-fundo: #1e1208;
+    --color-superficie-primaria: #2c1a0c;
+    --color-superficie-secundaria: #3a2210;
+    --color-borda: #5a3618;
     --color-conteudo-primario: #f5deb3;
-    --color-conteudo-secundario: #c9956a;
-    --color-conteudo-terciario: #8b5a2b;
+    --color-conteudo-secundario: #c09060;
+    --color-conteudo-terciario: #806040;
     --color-acento: #d4a030;
     --color-acento-hover: #b8861e;
     --color-erro: #e74c3c;
     --color-sucesso: #27ae60;
     --color-aviso: #f59e0b;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-gold: 0 0 0 1px rgba(212, 160, 48, 0.4), 0 4px 20px rgba(212, 160, 48, 0.18);
   }
 
   * {
@@ -55,11 +68,30 @@
   body {
     margin: 0;
     font-family:
+      "Inter",
       system-ui,
       -apple-system,
       sans-serif;
     background-color: var(--color-fundo);
     color: var(--color-conteudo-primario);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar elegante no tema escuro */
+  [data-tema="escuro"] ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  [data-tema="escuro"] ::-webkit-scrollbar-track {
+    background: var(--color-superficie-secundaria);
+  }
+  [data-tema="escuro"] ::-webkit-scrollbar-thumb {
+    background: var(--color-borda);
+    border-radius: 3px;
+  }
+  [data-tema="escuro"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-conteudo-terciario);
   }
 
   @media (prefers-reduced-motion: reduce) {

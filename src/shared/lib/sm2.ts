@@ -28,6 +28,7 @@ export function inicializarProgresso(
     intervaloDias: 0,
     proximaRevisao: null,
     ultimaTentativa: null,
+    favoritado: false,
   };
 }
 

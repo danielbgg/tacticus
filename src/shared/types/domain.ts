@@ -29,6 +29,9 @@ export interface ConfiguracoesPerfil {
   somHabilitado: boolean;
   modoDaltonico: boolean;
   idioma: "pt-BR" | "en" | "es";
+  metaDiaria: number;
+  modoCronometrado: boolean;
+  tempoCronometroS: number;
 }
 
 export interface Perfil {
@@ -37,6 +40,7 @@ export interface Perfil {
   avatar: string;
   nivel: NivelJogador;
   acertosParaDominar: number;
+  eloTatico: number;
   criadoEm: Date;
   ultimoAcesso: Date;
 }
@@ -88,6 +92,7 @@ export interface ProgressoExercicio {
   intervaloDias: number;
   proximaRevisao: Date | null;
   ultimaTentativa: Date | null;
+  favoritado: boolean;
 }
 
 export interface Tentativa {

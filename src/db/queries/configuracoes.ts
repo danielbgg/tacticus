@@ -13,6 +13,9 @@ interface ConfiguracoesRow {
   som_habilitado: number;
   modo_daltonico: number;
   idioma: string;
+  meta_diaria: number;
+  modo_cronometrado: number;
+  tempo_cronometro_s: number;
 }
 
 function rowParaConfiguracoes(row: ConfiguracoesRow): ConfiguracoesPerfil {
@@ -25,6 +28,9 @@ function rowParaConfiguracoes(row: ConfiguracoesRow): ConfiguracoesPerfil {
     somHabilitado: Boolean(row.som_habilitado),
     modoDaltonico: Boolean(row.modo_daltonico),
     idioma: row.idioma as ConfiguracoesPerfil["idioma"],
+    metaDiaria: row.meta_diaria ?? 0,
+    modoCronometrado: Boolean(row.modo_cronometrado),
+    tempoCronometroS: row.tempo_cronometro_s ?? 60,
   };
 }
 
@@ -51,8 +57,8 @@ export async function salvarConfiguracoes(
   try {
     await db.execute(
       `INSERT INTO configuracoes_perfil
-         (perfil_id, tema, estilo_tabuleiro, conjunto_pecas, animacao_lances, som_habilitado, modo_daltonico, idioma)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         (perfil_id, tema, estilo_tabuleiro, conjunto_pecas, animacao_lances, som_habilitado, modo_daltonico, idioma, meta_diaria, modo_cronometrado, tempo_cronometro_s)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(perfil_id) DO UPDATE SET
          tema = excluded.tema,
          estilo_tabuleiro = excluded.estilo_tabuleiro,
@@ -60,7 +66,10 @@ export async function salvarConfiguracoes(
          animacao_lances = excluded.animacao_lances,
          som_habilitado = excluded.som_habilitado,
          modo_daltonico = excluded.modo_daltonico,
-         idioma = excluded.idioma`,
+         idioma = excluded.idioma,
+         meta_diaria = excluded.meta_diaria,
+         modo_cronometrado = excluded.modo_cronometrado,
+         tempo_cronometro_s = excluded.tempo_cronometro_s`,
       [
         config.perfilId,
         config.tema,
@@ -70,6 +79,9 @@ export async function salvarConfiguracoes(
         config.somHabilitado ? 1 : 0,
         config.modoDaltonico ? 1 : 0,
         config.idioma,
+        config.metaDiaria ?? 0,
+        config.modoCronometrado ? 1 : 0,
+        config.tempoCronometroS ?? 60,
       ],
     );
     return ok(config);

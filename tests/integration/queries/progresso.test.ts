@@ -14,7 +14,7 @@ import { toPerfilId, toExercicioId } from "@/shared/types/branded";
 
 function criarDbMemoria() {
   const db = new Database(":memory:");
-  for (const m of ["0001_init.sql", "0002_add_conquistas.sql"]) {
+  for (const m of ["0001_init.sql", "0002_add_conquistas.sql", "0012_elo_favoritos_meta.sql"]) {
     db.exec(readFileSync(join(__dirname, "../../../src/db/migrations", m), "utf-8"));
   }
   db.exec(`INSERT INTO perfis (id, nome, nivel, avatar, acertos_para_dominar, criado_em, ultimo_acesso)

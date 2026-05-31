@@ -24,6 +24,7 @@ const MIGRATIONS = [
   () => import("./migrations/0009_limpeza_redesign.sql?raw").then((m) => m.default),
   () => import("./migrations/0010_circles_v3.sql?raw").then((m) => m.default),
   () => import("./migrations/0011_tatica_tematica.sql?raw").then((m) => m.default),
+  () => import("./migrations/0012_elo_favoritos_meta.sql?raw").then((m) => m.default),
 ];
 
 async function runMigrations(db: Database): Promise<void> {

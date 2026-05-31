@@ -79,6 +79,9 @@ export function ConfiguracoesPage() {
       somHabilitado: true,
       modoDaltonico: false,
       idioma: "pt-BR",
+      metaDiaria: 0,
+      modoCronometrado: false,
+      tempoCronometroS: 60,
     },
   );
   const [salvando, setSalvando] = useState(false);
@@ -108,6 +111,9 @@ export function ConfiguracoesPage() {
         somHabilitado: config.somHabilitado ?? true,
         modoDaltonico: config.modoDaltonico ?? false,
         idioma: config.idioma ?? "pt-BR",
+        metaDiaria: config.metaDiaria ?? 0,
+        modoCronometrado: config.modoCronometrado ?? false,
+        tempoCronometroS: config.tempoCronometroS ?? 60,
       };
       const db = await getDb();
       await salvarConfiguracoes(db as never, completo);
@@ -256,6 +262,84 @@ export function ConfiguracoesPage() {
               {c.label}
             </button>
           ))}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 font-semibold text-[var(--color-conteudo-primario)]">Treino</h2>
+        <div className="flex flex-col gap-4">
+          {/* Meta diária */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="metaDiaria"
+              className="text-sm font-medium text-[var(--color-conteudo-primario)]"
+            >
+              Meta diária de acertos
+            </label>
+            <p className="text-xs text-[var(--color-conteudo-terciario)]">
+              0 = desativada. Exibe barra de progresso na tela inicial.
+            </p>
+            <input
+              id="metaDiaria"
+              type="number"
+              min={0}
+              max={500}
+              step={5}
+              value={config.metaDiaria ?? 0}
+              onChange={(e) => atualizar("metaDiaria", Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-32 rounded-lg border border-[var(--color-borda)] bg-[var(--color-superficie-primaria)] px-3 py-2 text-sm text-[var(--color-conteudo-primario)] outline-none focus:border-[var(--color-acento)] focus:ring-2 focus:ring-[var(--color-acento)]/30"
+            />
+          </div>
+
+          {/* Modo cronometrado */}
+          <label className="flex items-center justify-between cursor-pointer">
+            <div>
+              <p className="font-medium text-[var(--color-conteudo-primario)]">Modo cronometrado</p>
+              <p className="text-sm text-[var(--color-conteudo-secundario)]">
+                Conta regressiva por exercício — ao zerar, exibe a solução
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={config.modoCronometrado}
+              onClick={() => atualizar("modoCronometrado", !config.modoCronometrado)}
+              className={`relative h-6 w-11 rounded-full transition-colors ${
+                config.modoCronometrado ? "bg-[var(--color-acento)]" : "bg-[var(--color-borda)]"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                  config.modoCronometrado ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </label>
+
+          {/* Duração do cronômetro */}
+          {config.modoCronometrado && (
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="tempoCronometro"
+                className="text-sm text-[var(--color-conteudo-secundario)]"
+              >
+                Tempo por exercício: <strong>{config.tempoCronometroS ?? 60}s</strong>
+              </label>
+              <input
+                id="tempoCronometro"
+                type="range"
+                min={10}
+                max={300}
+                step={5}
+                value={config.tempoCronometroS ?? 60}
+                onChange={(e) => atualizar("tempoCronometroS", parseInt(e.target.value))}
+                className="w-full accent-[var(--color-acento)]"
+              />
+              <div className="flex justify-between text-xs text-[var(--color-conteudo-terciario)]">
+                <span>10s</span>
+                <span>300s</span>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

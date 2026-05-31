@@ -10,10 +10,12 @@ function makePiece(src: string): PieceFn {
         width: squareWidth,
         height: squareWidth,
         backgroundImage: `url("${src}")`,
-        backgroundSize: "100%",
+        backgroundSize: "contain",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
         userSelect: "none",
+        filter:
+          "drop-shadow(0px 2px 2px rgba(0,0,0,0.28)) drop-shadow(0px 1px 1px rgba(0,0,0,0.18))",
       }}
     />
   );
